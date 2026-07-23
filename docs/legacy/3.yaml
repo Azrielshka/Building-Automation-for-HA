@@ -1,0 +1,17 @@
+alias: Сохраняем режим управления колледжа в MQTT
+description: ""
+triggers:
+  - trigger: state
+    entity_id:
+      - input_button.but_save_mode
+conditions: []
+actions:
+  - action: mqtt.publish
+    metadata: {}
+    data:
+      evaluate_payload: false
+      qos: "0"
+      retain: true
+      topic: khimki/mode_select
+      payload: "{{ states('input_select.mode_work_colhim') }}"
+mode: single

@@ -1,0 +1,24 @@
+{
+  "//": "Типы для панели без сборки: tsc только проверяет .js по JSDoc, ничего не генерирует.",
+  "compilerOptions": {
+    "checkJs": true,
+    "allowJs": true,
+    "noEmit": true,
+    "strict": true,
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "exactOptionalPropertyTypes": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
+  },
+  "include": ["custom_components/building_automation/www/**/*.js"],
+  "exclude": [
+    "node_modules",
+    "custom_components/building_automation/www/vendor/**"
+  ]
+}

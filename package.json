@@ -1,0 +1,19 @@
+{
+  "name": "building-automation-panel",
+  "private": true,
+  "type": "module",
+  "description": "Dev-инструменты панели. В рантайм ничего отсюда не попадает — сборки нет.",
+  "scripts": {
+    "typecheck": "tsc -p jsconfig.json",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "eslint": "^9.0.0",
+    "globals": "^16.0.0",
+    "prettier": "^3.6.2",
+    "typescript": "^5.6.0"
+  }
+}

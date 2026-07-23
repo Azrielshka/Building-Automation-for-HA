@@ -1,0 +1,154 @@
+alias: Сценарии большого актового зала 204
+description: ""
+triggers:
+  - trigger: state
+    entity_id:
+      - input_boolean.mode_full_bct
+    to: "on"
+    id: max
+  - trigger: state
+    entity_id:
+      - input_boolean.mode_min_bct
+    to: "on"
+    id: min
+  - trigger: state
+    entity_id:
+      - input_boolean.mode_theatre_204
+    to: "on"
+    id: "45"
+  - trigger: state
+    entity_id:
+      - input_boolean.mode_ivent
+    to: "on"
+    id: conf
+conditions: []
+actions:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id:
+              - max
+        sequence:
+          - action: input_boolean.turn_off
+            metadata: {}
+            data: {}
+            target:
+              entity_id:
+                - input_boolean.mode_min_bct
+                - input_boolean.mode_theatre_204
+                - input_boolean.mode_ivent
+          - action: light.turn_on
+            metadata: {}
+            data:
+              brightness_pct: 100
+            target:
+              entity_id: light.onstage_204
+          - action: light.turn_on
+            metadata: {}
+            data:
+              brightness_pct: 100
+            target:
+              entity_id: light.act_hall_204
+          - action: mqtt.publish
+            metadata: {}
+            data:
+              evaluate_payload: false
+              qos: 0
+              retain: true
+              topic: khimki/act_hall_204/mode
+              payload: max
+      - conditions:
+          - condition: trigger
+            id:
+              - min
+        sequence:
+          - action: input_boolean.turn_off
+            metadata: {}
+            data: {}
+            target:
+              entity_id:
+                - input_boolean.mode_full_bct
+                - input_boolean.mode_theatre_204
+                - input_boolean.mode_ivent
+          - action: light.turn_on
+            metadata: {}
+            data:
+              brightness_pct: 18
+            target:
+              entity_id:
+                - light.act_hall_204
+                - light.onstage_204
+          - action: mqtt.publish
+            metadata: {}
+            data:
+              evaluate_payload: false
+              qos: 0
+              retain: true
+              topic: khimki/act_hall_204/mode
+              payload: min
+      - conditions:
+          - condition: trigger
+            id:
+              - "45"
+        sequence:
+          - action: input_boolean.turn_off
+            metadata: {}
+            data: {}
+            target:
+              entity_id:
+                - input_boolean.mode_full_bct
+                - input_boolean.mode_min_bct
+                - input_boolean.mode_ivent
+          - action: light.turn_on
+            metadata: {}
+            data:
+              brightness_pct: 45
+            target:
+              entity_id: light.onstage_204
+          - action: light.turn_off
+            metadata: {}
+            target:
+              entity_id: light.act_hall_204
+            data: {}
+          - action: mqtt.publish
+            metadata: {}
+            data:
+              evaluate_payload: false
+              qos: 0
+              retain: true
+              topic: khimki/act_hall_204/mode
+              payload: "45"
+      - conditions:
+          - condition: trigger
+            id:
+              - conf
+        sequence:
+          - action: input_boolean.turn_off
+            metadata: {}
+            data: {}
+            target:
+              entity_id:
+                - input_boolean.mode_full_bct
+                - input_boolean.mode_min_bct
+                - input_boolean.mode_theatre_204
+          - action: light.turn_on
+            metadata: {}
+            data:
+              brightness_pct: 20
+            target:
+              entity_id: light.act_hall_204
+          - action: light.turn_on
+            metadata: {}
+            data:
+              brightness_pct: 60
+            target:
+              entity_id: light.onstage_204
+          - action: mqtt.publish
+            metadata: {}
+            data:
+              evaluate_payload: false
+              qos: 0
+              retain: true
+              topic: khimki/act_hall_204/mode
+              payload: conf
+mode: single

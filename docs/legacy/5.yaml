@@ -1,0 +1,76 @@
+alias: Управление автоматизациями 2-го этажа с переключателей
+description: ""
+triggers:
+  - trigger: state
+    entity_id:
+      - input_boolean.regim_auto_2
+    to:
+      - "on"
+    id: to ON
+    from:
+      - "off"
+  - trigger: state
+    entity_id:
+      - input_boolean.regim_auto_2
+    to:
+      - "off"
+    id: to OFF
+    from:
+      - "on"
+conditions: []
+actions:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id:
+              - to ON
+        sequence:
+          - action: automation.turn_on
+            metadata: {}
+            data: {}
+            target:
+              entity_id:
+                - automation.lestnitsa_210_vkliuchenie_zon_po_datchikam_on
+                - automation.lestnitsa_210_vykliuchenie_zon_po_datchikam_off
+                - automation.lestnitsa_214_vkliuchenie_zon_po_datchikam_on
+                - automation.lestnitsa_214_vykliuchenie_zon_po_datchikam_off
+                - automation.s_u_zhenskii_211_special_vkliuchenie_zony_on
+                - automation.s_u_zhenskii_211_special_vykliuchenie_zony_off
+                - automation.s_u_muzhskoi_212_special_vkliuchenie_zony_on
+                - automation.s_u_muzhskoi_212_special_vykliuchenie_zony_off
+                - automation.koridor_209_vkliuchenie_zon_po_datchikam_on
+                - automation.koridor_209_vykliuchenie_zon_po_datchikam_off
+                - >-
+                  automation.lestnichnaia_kletka_205_vkliuchenie_zon_po_datchikam_on
+                - >-
+                  automation.lestnichnaia_kletka_205_vykliuchenie_zon_po_datchikam_off
+                - automation.lestnitsa_205_138_vkliuchenie_zon_po_datchikam_on
+                - automation.lestnitsa_205_138_vykliuchenie_zon_po_datchikam_off
+      - conditions:
+          - condition: trigger
+            id:
+              - to OFF
+        sequence:
+          - action: automation.turn_off
+            metadata: {}
+            target:
+              entity_id:
+                - automation.lestnitsa_210_vkliuchenie_zon_po_datchikam_on
+                - automation.lestnitsa_210_vykliuchenie_zon_po_datchikam_off
+                - automation.lestnitsa_214_vkliuchenie_zon_po_datchikam_on
+                - automation.lestnitsa_214_vykliuchenie_zon_po_datchikam_off
+                - automation.s_u_zhenskii_211_special_vkliuchenie_zony_on
+                - automation.s_u_zhenskii_211_special_vykliuchenie_zony_off
+                - automation.s_u_muzhskoi_212_special_vkliuchenie_zony_on
+                - automation.s_u_muzhskoi_212_special_vykliuchenie_zony_off
+                - automation.koridor_209_vkliuchenie_zon_po_datchikam_on
+                - automation.koridor_209_vykliuchenie_zon_po_datchikam_off
+                - >-
+                  automation.lestnichnaia_kletka_205_vkliuchenie_zon_po_datchikam_on
+                - >-
+                  automation.lestnichnaia_kletka_205_vykliuchenie_zon_po_datchikam_off
+                - automation.lestnitsa_205_138_vkliuchenie_zon_po_datchikam_on
+                - automation.lestnitsa_205_138_vykliuchenie_zon_po_datchikam_off
+            data:
+              stop_actions: false
+mode: single

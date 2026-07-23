@@ -1,0 +1,21 @@
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Node — только dev-инструменты, в рантайм не идут
+node_modules/
+
+# Home Assistant
+.storage/
+*.log
+
+# Материалы объекта (тяжёлые бинарники — вне истории кода)
+docs/Логика и структура работы управление освещением/

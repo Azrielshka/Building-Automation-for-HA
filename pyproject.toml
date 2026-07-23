@@ -1,0 +1,105 @@
+[project]
+name = "building-automation"
+version = "0.1.0"
+description = "Оркестратор здания — custom integration для Home Assistant"
+requires-python = ">=3.14.2"
+
+# Версии и пины — в .ai/rules/tooling.md. Здесь только конфигурация инструментов.
+
+[tool.ruff]
+target-version = "py314"
+line-length = 88
+src = ["custom_components", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "A",      # затенение встроенных имён
+    "ASYNC",  # ошибки асинхронности — блокирующие вызовы в корутинах
+    "B",      # bugbear: изменяемые дефолты, ошибки в замыканиях
+    "BLE",    # blind except
+    "C4",     # comprehensions
+    "D",      # докстринги
+    "DTZ",    # naive datetime
+    "E", "W", # pycodestyle
+    "F",      # pyflakes
+    "FURB",
+    "G",      # формат логирования
+    "I",      # сортировка импортов
+    "INP",    # пакет без __init__.py
+    "LOG",
+    "PERF",
+    "PGH",    # заглушенные ошибки без кода
+    "PIE",
+    "PL",     # pylint
+    "PT",     # стиль pytest
+    "PTH",    # pathlib вместо os.path
+    "RET",
+    "RSE",
+    "RUF",
+    "S",      # bandit: безопасность
+    "SIM",
+    "SLF",    # доступ к приватным атрибутам чужих объектов
+    "T20",    # print() в коде
+    "TRY",    # ошибки обработки исключений
+    "UP",     # устаревшие конструкции
+]
+ignore = [
+    "D203",   # конфликтует с D211
+    "D213",   # конфликтует с D212
+    "TRY003", # длинные сообщения в raise — допускаем
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = [
+    "S101",   # assert в тестах — норма (запрет из гайда касается рантайма)
+    "D",      # докстринги в тестах не требуем
+    "PLR2004", # магические числа в проверках допустимы
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["custom_components"]
+
+[tool.ruff.lint.flake8-pytest-style]
+fixture-parentheses = false
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+# Дополнительно к strict — то, что HA core включает у себя:
+local_partial_types = true
+strict_equality = true
+strict_bytes = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_return_any = true
+warn_unreachable = true
+enable_error_code = [
+    "deprecated",        # ловит устаревшие API HA на этапе проверки типов
+    "explicit-override",
+    "ignore-without-code",
+    "redundant-self",
+    "truthy-iterable",
+]
+disable_error_code = [
+    "import-not-found",  # пакет homeassistant не установлен — типы HA недоступны
+    "import-untyped",
+]
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+
+[tool.pytest.ini_options]
+# Пакет homeassistant не устанавливается: тесты покрывают только чистую логику
+# без hass (см. .ai/rules/tooling.md §2 и §5).
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "--strict-markers"
+
+[tool.coverage.run]
+source = ["custom_components/building_automation"]
+branch = true
+
+[tool.coverage.report]
+exclude_also = ["if TYPE_CHECKING:", "raise NotImplementedError"]

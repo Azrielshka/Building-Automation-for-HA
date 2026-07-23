@@ -1,0 +1,172 @@
+alias: Переключение автоматизаций по "Режим работы колледжа"
+description: ""
+triggers:
+  - trigger: template
+    value_template: "{{ states('input_text.regim_work_colledge') == 'Урок'}}"
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 5
+    id: Урок
+    enabled: true
+  - trigger: template
+    value_template: "{{ states('input_text.regim_work_colledge') == 'Перемена'}}"
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 5
+    id: Перемена
+  - trigger: template
+    value_template: "{{ states('input_text.regim_work_colledge') == 'Не рабочее время'}}"
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 5
+    id: Не рабочее время
+  - trigger: template
+    value_template: "{{ states('input_text.regim_work_colledge') == 'Окошко'}}"
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 5
+    id: Окошко
+conditions: []
+actions:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id:
+              - Урок
+        sequence:
+          - action: notify.persistent_notification
+            metadata: {}
+            data:
+              title: ✅ Инициализировано изменение режима расписания!
+              message: " ▸ Переход в режим - ПАРА осуществится через 5 минут, ожидайте!"
+          - delay:
+              hours: 0
+              minutes: 0
+              seconds: "{{ states('input_number.urok_time_delay') | int }}"
+              milliseconds: 0
+          - action: light.turn_off
+            metadata: {}
+            data: {}
+            target:
+              entity_id:
+                - light.ves_3_i_etazh
+                - light.ves_4_i_etazh
+                - light.ves_5_i_etazh
+                - light.ves_2_i_etazh
+                - light.ves_1_i_etazh
+            enabled: true
+          - action: input_boolean.turn_on
+            metadata: {}
+            target:
+              entity_id:
+                - input_boolean.regim_auto_1
+                - input_boolean.regim_auto_2
+                - input_boolean.regim_auto_3
+                - input_boolean.regim_auto_4
+            data: {}
+          - delay:
+              hours: 0
+              minutes: 0
+              seconds: 5
+              milliseconds: 0
+          - action: notify.persistent_notification
+            metadata: {}
+            data:
+              title: ✅ Режим работы изменен!
+              message: " ▸ Переход в режим - УРОК! Все автоматизации включены (нет) "
+      - conditions:
+          - condition: trigger
+            id:
+              - Перемена
+        sequence:
+          - action: light.turn_on
+            metadata: {}
+            data:
+              brightness_pct: 100
+            target:
+              entity_id:
+                - light.ves_3_i_etazh
+                - light.ves_4_i_etazh
+                - light.ves_5_i_etazh
+                - light.ves_1_i_etazh
+                - light.ves_2_i_etazh
+          - action: input_boolean.turn_off
+            metadata: {}
+            target:
+              entity_id:
+                - input_boolean.regim_auto_1
+                - input_boolean.regim_auto_2
+                - input_boolean.regim_auto_3
+                - input_boolean.regim_auto_4
+                - input_boolean.regim_auto_hall
+            data: {}
+          - action: notify.persistent_notification
+            metadata: {}
+            data:
+              title: ✅ Режим работы изменен!
+              message: " ▸ Переход в режим - Перемена! Свет включен. Все автоматизации выключены (нет) "
+      - conditions:
+          - condition: trigger
+            id:
+              - Не рабочее время
+        sequence:
+          - action: light.turn_off
+            metadata: {}
+            data: {}
+            target:
+              entity_id:
+                - light.ves_obshch_1_etazh
+                - light.ves_obshch_2_etazh
+                - light.ves_obshch_3_etazh
+                - light.ves_obshch_4_etazh
+            enabled: true
+          - action: input_boolean.turn_on
+            metadata: {}
+            target:
+              entity_id:
+                - input_boolean.regim_auto_1
+                - input_boolean.regim_auto_2
+                - input_boolean.regim_auto_3
+                - input_boolean.regim_auto_4
+                - input_boolean.regim_auto_hall
+            data: {}
+          - action: notify.persistent_notification
+            metadata: {}
+            data:
+              title: ✅ Режим работы изменен!
+              message: " ▸ Переход в режим - НЕ РАБОЧЕЕ ВРЕМЯ! Все автоматизации включены (нет). Весь свет выключен! "
+      - conditions:
+          - condition: trigger
+            id:
+              - Окошко
+        sequence:
+          - action: light.turn_on
+            metadata: {}
+            data:
+              brightness_pct: 100
+            target:
+              entity_id:
+                - light.ves_obshch_1_etazh
+                - light.ves_obshch_2_etazh
+                - light.ves_obshch_3_etazh
+                - light.ves_obshch_4_etazh
+          - action: input_boolean.turn_off
+            metadata: {}
+            target:
+              entity_id:
+                - input_boolean.regim_auto_1
+                - input_boolean.regim_auto_2
+                - input_boolean.regim_auto_3
+                - input_boolean.regim_auto_4
+                - input_boolean.regim_auto_hall
+            data: {}
+          - action: notify.persistent_notification
+            metadata: {}
+            data:
+              title: ✅ Режим работы изменен!
+              message: " ▸ Переход в режим - ОКОШКО! Весь свет включен. Все автоматизации выключены (нет) "
+mode: single

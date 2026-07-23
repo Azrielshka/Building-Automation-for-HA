@@ -1,0 +1,79 @@
+alias: >-
+  Управление режимом расписание (урок/перемена/нерабочее) — авто-подхват
+  schedule
+description: ""
+triggers:
+  - id: Урок
+    value_template: |-
+      {% set ents = expand(integration_entities('event_schedule')) %} {{ ents
+        | selectattr('state','eq','on')
+        | selectattr('attributes.event_type','eq','lesson')
+        | list | count > 0 }}
+    trigger: template
+  - id: Перемена
+    value_template: |-
+      {% set ents = expand(integration_entities('event_schedule')) %} {{ ents
+        | selectattr('state','eq','on')
+        | selectattr('attributes.event_type','eq','break')
+        | list | count > 0 }}
+    trigger: template
+  - id: Не рабочее время
+    value_template: |-
+      {% set ents = expand(integration_entities('event_schedule')) %} {{ ents
+        | selectattr('state','eq','on')
+        | selectattr('attributes.event_type','eq','off')
+        | list | count > 0 }}
+    trigger: template
+  - id: Окошко
+    value_template: |-
+      {% set ents = expand(integration_entities('event_schedule')) %} {{ ents
+        | selectattr('state','eq','on')
+        | selectattr('attributes.event_type','eq','window')
+        | list | count > 0 }}
+    trigger: template
+conditions: []
+actions:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: Урок
+        sequence:
+          - action: input_text.set_value
+            target:
+              entity_id: input_text.regim_work_colledge
+            data:
+              value: Урок
+      - conditions:
+          - condition: trigger
+            id: Перемена
+        sequence:
+          - action: input_text.set_value
+            target:
+              entity_id: input_text.regim_work_colledge
+            data:
+              value: Перемена
+      - conditions:
+          - condition: trigger
+            id: Не рабочее время
+        sequence:
+          - action: input_text.set_value
+            target:
+              entity_id: input_text.regim_work_colledge
+            data:
+              value: Не рабочее время
+      - conditions:
+          - condition: trigger
+            id: Окошко
+        sequence:
+          - action: input_text.set_value
+            target:
+              entity_id: input_text.regim_work_colledge
+            data:
+              value: Окошко
+  - action: mqtt.publish
+    data:
+      qos: 0
+      retain: true
+      topic: khimki/mode_work
+      payload: "{{ states('input_text.regim_work_colledge') }}"
+mode: single

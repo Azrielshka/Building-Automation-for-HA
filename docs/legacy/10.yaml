@@ -1,0 +1,36 @@
+alias: Фасад - работа по восходу/закату
+description: ""
+triggers:
+  - trigger: sun
+    event: sunrise
+    offset: "-00:02:00"
+    id: Восход
+  - trigger: sun
+    event: sunset
+    offset: "00:05:00"
+    id: Закат
+conditions: []
+actions:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id:
+              - Восход
+        sequence:
+          - action: light.turn_off
+            metadata: {}
+            target:
+              entity_id: light.fasadnaia_podsvetka
+            data: {}
+      - conditions:
+          - condition: trigger
+            id:
+              - Закат
+        sequence:
+          - action: light.turn_on
+            metadata: {}
+            target:
+              entity_id: light.fasadnaia_podsvetka
+            data:
+              brightness_pct: 100
+mode: single

@@ -1,0 +1,8 @@
+# Контур логики — ставится на dev-VM. Пакет homeassistant НЕ тянется.
+# Тесты: pytest -m "not ha"
+pytest
+pytest-asyncio
+pytest-cov
+mypy
+ruff
+mutmut

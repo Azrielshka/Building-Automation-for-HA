@@ -1,0 +1,160 @@
+alias: Управление автоматизациями 1-го этажа с переключателей
+description: ""
+triggers:
+  - trigger: state
+    entity_id:
+      - input_boolean.regim_auto_1
+    to:
+      - "on"
+    id: to ON
+    from:
+      - "off"
+  - trigger: state
+    entity_id:
+      - input_boolean.regim_auto_1
+    to:
+      - "off"
+    id: to OFF
+    from:
+      - "on"
+conditions: []
+actions:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id:
+              - to ON
+        sequence:
+          - action: automation.turn_on
+            metadata: {}
+            data: {}
+            target:
+              entity_id:
+                - automation.koridor_115_vkliuchenie_zon_po_datchikam_on
+                - automation.koridor_115_vykliuchenie_zon_po_datchikam_off
+                - automation.s_u_117_special_vkliuchenie_zony_on
+                - automation.s_u_117_special_vykliuchenie_zony_off
+                - automation.koridor_114_vkliuchenie_zon_po_datchikam_on
+                - automation.koridor_114_vykliuchenie_zon_po_datchikam_off
+                - automation.s_u_zhenskii_112_special_vkliuchenie_zony_on
+                - automation.s_u_zhenskii_112_special_vykliuchenie_zony_off
+                - automation.s_u_125_special_vkliuchenie_zony_on
+                - automation.s_u_125_special_vykliuchenie_zony_off
+                - automation.s_u_126_special_vkliuchenie_zony_on
+                - automation.s_u_126_special_vykliuchenie_zony_off
+                - automation.s_u_130_131_special_vkliuchenie_zony_on
+                - automation.s_u_130_131_special_vykliuchenie_zony_off
+                - automation.vestibiul_132_vkliuchenie_zon_po_datchikam_on
+                - automation.vestibiul_132_vykliuchenie_zon_po_datchikam_off
+                - automation.tambur_136_kholl_vkliuchenie_po_datchikam_on
+                - automation.tambur_137_kholl_vkliuchenie_po_datchikam_on
+                - automation.tambur_137_kholl_vykliuchenie_po_datchikam_off
+                - automation.s_u_154_special_vkliuchenie_zony_on
+                - automation.s_u_154_special_vykliuchenie_zony_off
+                - automation.koridor_156_vkliuchenie_zon_po_datchikam_on
+                - automation.koridor_156_vykliuchenie_zon_po_datchikam_off
+                - automation.zagruzochnaia_161_vkliuchenie_zon_po_datchikam_on
+                - automation.zagruzochnaia_161_vykliuchenie_zon_po_datchikam_off
+                - automation.vestibiul_147_vkliuchenie_zon_po_datchikam_on
+                - automation.vestibiul_147_vykliuchenie_zon_po_datchikam_off
+                - automation.chitalnyi_zal_143_special_vykliuchenie_zony_off
+                - automation.chitalnyi_zal_143_special_vkliuchenie_zony_on
+                - automation.obedennyi_zal_145_special_vkliuchenie_zony_on
+                - automation.obedennyi_zal_145_special_vykliuchenie_zony_off
+                - automation.koridor_141_vkliuchenie_zon_po_datchikam_on
+                - automation.koridor_141_vykliuchenie_zon_po_datchikam_off
+                - >-
+                  automation.obshchii_vestibiul_172_vkliuchenie_zon_po_datchikam_on
+                - >-
+                  automation.glavnyi_vestibiul_172_vykliuchenie_zon_po_datchikam_off
+                - automation.lestnitsa_171_170_vkliuchenie_zon_po_datchikam_on
+                - automation.lestnitsa_171_170_vykliuchenie_zon_po_datchikam_off
+                - automation.klg_173_special_vkliuchenie_zony_on
+                - automation.klg_173_special_vykliuchenie_zony_off
+                - automation.s_u_176_special_vkliuchenie_zony_on
+                - automation.s_u_176_special_vykliuchenie_zony_off
+                - automation.s_u_177_special_vkliuchenie_zony_on
+                - automation.s_u_177_special_vykliuchenie_zony_off
+                - automation.s_u_zhenskii_175_174_special_vkliuchenie_zony_on
+                - automation.s_u_zhenskii_175_174_special_vykliuchenie_zony_off
+                - automation.s_u_mgn_178_special_vkliuchenie_zony_on
+                - automation.s_u_mgn_178_special_vykliuchenie_zony_off
+                - automation.lestnitsa_184_183_vkliuchenie_zon_po_datchikam_on
+                - automation.lestnitsa_184_183_vykliuchenie_zon_po_datchikam_off
+                - >-
+                  automation.vkhodnoi_kholl_179_180_kholl_vkliuchenie_po_datchikam_on
+                - >-
+                  automation.vkhodnoi_kholl_179_180_kholl_vykliuchenie_po_datchikam_off
+                - automation.lestnitsa_203_146_vkliuchenie_zon_po_datchikam_on
+                - automation.lestnitsa_203_146_vykliuchenie_zon_po_datchikam_off
+                - automation.tambur_146_kholl_vykliuchenie_po_datchikam_off
+      - conditions:
+          - condition: trigger
+            id:
+              - to OFF
+        sequence:
+          - action: automation.turn_off
+            metadata: {}
+            target:
+              entity_id:
+                - automation.koridor_115_vkliuchenie_zon_po_datchikam_on
+                - automation.koridor_115_vykliuchenie_zon_po_datchikam_off
+                - automation.s_u_117_special_vkliuchenie_zony_on
+                - automation.s_u_117_special_vykliuchenie_zony_off
+                - automation.koridor_114_vkliuchenie_zon_po_datchikam_on
+                - automation.koridor_114_vykliuchenie_zon_po_datchikam_off
+                - automation.s_u_zhenskii_112_special_vkliuchenie_zony_on
+                - automation.s_u_zhenskii_112_special_vykliuchenie_zony_off
+                - automation.s_u_125_special_vkliuchenie_zony_on
+                - automation.s_u_125_special_vykliuchenie_zony_off
+                - automation.s_u_126_special_vkliuchenie_zony_on
+                - automation.s_u_126_special_vykliuchenie_zony_off
+                - automation.s_u_130_131_special_vkliuchenie_zony_on
+                - automation.s_u_130_131_special_vykliuchenie_zony_off
+                - automation.vestibiul_132_vkliuchenie_zon_po_datchikam_on
+                - automation.vestibiul_132_vykliuchenie_zon_po_datchikam_off
+                - automation.tambur_136_kholl_vkliuchenie_po_datchikam_on
+                - automation.tambur_137_kholl_vkliuchenie_po_datchikam_on
+                - automation.tambur_137_kholl_vykliuchenie_po_datchikam_off
+                - automation.s_u_154_special_vkliuchenie_zony_on
+                - automation.s_u_154_special_vykliuchenie_zony_off
+                - automation.koridor_156_vkliuchenie_zon_po_datchikam_on
+                - automation.koridor_156_vykliuchenie_zon_po_datchikam_off
+                - automation.zagruzochnaia_161_vkliuchenie_zon_po_datchikam_on
+                - automation.zagruzochnaia_161_vykliuchenie_zon_po_datchikam_off
+                - automation.vestibiul_147_vkliuchenie_zon_po_datchikam_on
+                - automation.vestibiul_147_vykliuchenie_zon_po_datchikam_off
+                - automation.chitalnyi_zal_143_special_vykliuchenie_zony_off
+                - automation.chitalnyi_zal_143_special_vkliuchenie_zony_on
+                - automation.obedennyi_zal_145_special_vkliuchenie_zony_on
+                - automation.obedennyi_zal_145_special_vykliuchenie_zony_off
+                - automation.koridor_141_vkliuchenie_zon_po_datchikam_on
+                - automation.koridor_141_vykliuchenie_zon_po_datchikam_off
+                - >-
+                  automation.obshchii_vestibiul_172_vkliuchenie_zon_po_datchikam_on
+                - >-
+                  automation.glavnyi_vestibiul_172_vykliuchenie_zon_po_datchikam_off
+                - automation.lestnitsa_171_170_vkliuchenie_zon_po_datchikam_on
+                - automation.lestnitsa_171_170_vykliuchenie_zon_po_datchikam_off
+                - automation.klg_173_special_vkliuchenie_zony_on
+                - automation.klg_173_special_vykliuchenie_zony_off
+                - automation.s_u_176_special_vkliuchenie_zony_on
+                - automation.s_u_176_special_vykliuchenie_zony_off
+                - automation.s_u_177_special_vkliuchenie_zony_on
+                - automation.s_u_177_special_vykliuchenie_zony_off
+                - automation.s_u_zhenskii_175_174_special_vkliuchenie_zony_on
+                - automation.s_u_zhenskii_175_174_special_vykliuchenie_zony_off
+                - automation.s_u_mgn_178_special_vkliuchenie_zony_on
+                - automation.s_u_mgn_178_special_vykliuchenie_zony_off
+                - automation.lestnitsa_184_183_vkliuchenie_zon_po_datchikam_on
+                - automation.lestnitsa_184_183_vykliuchenie_zon_po_datchikam_off
+                - >-
+                  automation.vkhodnoi_kholl_179_180_kholl_vkliuchenie_po_datchikam_on
+                - >-
+                  automation.vkhodnoi_kholl_179_180_kholl_vykliuchenie_po_datchikam_off
+                - automation.lestnitsa_203_146_vkliuchenie_zon_po_datchikam_on
+                - automation.lestnitsa_203_146_vykliuchenie_zon_po_datchikam_off
+                - automation.tambur_146_kholl_vykliuchenie_po_datchikam_off
+            data:
+              stop_actions: false
+mode: single

@@ -1,0 +1,53 @@
+alias: Сохранения времени отключения освещения
+description: >-
+  Публикует изменения времени отключения освещения khimki/time_delay/rec
+  khimki/time_delay/corridor, khimki/time_delay/hall, khimki/time_delay/urok,
+  khimki/mode_select
+triggers:
+  - trigger: state
+    entity_id:
+      - input_number.rec_time_delay
+  - trigger: state
+    entity_id:
+      - input_number.corridor_time_delay
+  - trigger: state
+    entity_id:
+      - input_number.hall_time_delay
+  - trigger: state
+    entity_id:
+      - input_number.urok_time_delay
+conditions: []
+actions:
+  - action: mqtt.publish
+    metadata: {}
+    data:
+      evaluate_payload: false
+      qos: 0
+      retain: true
+      topic: khimki/time_delay/rec
+      payload: "{{states('input_number.rec_time_delay')}}"
+  - action: mqtt.publish
+    metadata: {}
+    data:
+      evaluate_payload: false
+      qos: 0
+      retain: true
+      topic: khimki/time_delay/corridor
+      payload: "{{states('input_number.corridor_time_delay')}}"
+  - action: mqtt.publish
+    metadata: {}
+    data:
+      evaluate_payload: false
+      qos: 0
+      retain: true
+      topic: khimki/time_delay/hall
+      payload: "{{states('input_number.hall_time_delay')}}"
+  - action: mqtt.publish
+    metadata: {}
+    data:
+      evaluate_payload: false
+      qos: 0
+      retain: true
+      topic: khimki/time_delay/urok
+      payload: "{{states('input_number.urok_time_delay')}}"
+mode: single

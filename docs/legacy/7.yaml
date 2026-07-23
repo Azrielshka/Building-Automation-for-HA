@@ -1,0 +1,68 @@
+alias: Управление автоматизациями 4-го этажа с переключателей
+description: ""
+triggers:
+  - trigger: state
+    entity_id:
+      - input_boolean.regim_auto_4
+    to:
+      - "on"
+    id: to ON
+    from:
+      - "off"
+  - trigger: state
+    entity_id:
+      - input_boolean.regim_auto_4
+    to:
+      - "off"
+    id: to OFF
+    from:
+      - "on"
+conditions: []
+actions:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id:
+              - to ON
+        sequence:
+          - action: automation.turn_on
+            metadata: {}
+            target:
+              entity_id:
+                - automation.koridor_413_vkliuchenie_zon_po_datchikam_on
+                - automation.koridor_413_vykliuchenie_zon_po_datchikam_off
+                - automation.s_u_zhenskii_405_special_vkliuchenie_zony_on
+                - automation.s_u_zhenskii_405_special_vykliuchenie_zony_off
+                - automation.s_u_muzhskoi_406_special_vkliuchenie_zony_on
+                - automation.s_u_muzhskoi_406_special_vykliuchenie_zony_off
+                - automation.lestnitsa_404_vkliuchenie_zon_po_datchikam_on
+                - automation.lestnitsa_404_vykliuchenie_zon_po_datchikam_off
+                - automation.lestnitsa_408_vkliuchenie_zon_po_datchikam_on
+                - automation.lestnitsa_408_vykliuchenie_zon_po_datchikam_off
+                - automation.lestnitsa_501_vkliuchenie_zon_po_datchikam_on
+                - automation.lestnitsa_501_vykliuchenie_zon_po_datchikam_off
+            data: {}
+      - conditions:
+          - condition: trigger
+            id:
+              - to OFF
+        sequence:
+          - action: automation.turn_off
+            metadata: {}
+            target:
+              entity_id:
+                - automation.koridor_413_vkliuchenie_zon_po_datchikam_on
+                - automation.koridor_413_vykliuchenie_zon_po_datchikam_off
+                - automation.s_u_zhenskii_405_special_vkliuchenie_zony_on
+                - automation.s_u_zhenskii_405_special_vykliuchenie_zony_off
+                - automation.s_u_muzhskoi_406_special_vkliuchenie_zony_on
+                - automation.s_u_muzhskoi_406_special_vykliuchenie_zony_off
+                - automation.lestnitsa_404_vkliuchenie_zon_po_datchikam_on
+                - automation.lestnitsa_404_vykliuchenie_zon_po_datchikam_off
+                - automation.lestnitsa_408_vkliuchenie_zon_po_datchikam_on
+                - automation.lestnitsa_408_vykliuchenie_zon_po_datchikam_off
+                - automation.lestnitsa_501_vkliuchenie_zon_po_datchikam_on
+                - automation.lestnitsa_501_vykliuchenie_zon_po_datchikam_off
+            data:
+              stop_actions: false
+mode: single

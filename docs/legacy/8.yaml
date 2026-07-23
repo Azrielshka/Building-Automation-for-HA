@@ -1,0 +1,91 @@
+alias: Управление глобал режимом работы колледжа
+description: ""
+triggers:
+  - trigger: state
+    entity_id:
+      - sensor.tekushchii_rezhi_raboty_kolledzha
+conditions: []
+actions:
+  - choose:
+      - conditions:
+          - alias: Рабочий режим
+            condition: template
+            value_template: >-
+              {{ states('sensor.tekushchii_rezhi_raboty_kolledzha') == "По
+              расписанию" }}
+        sequence:
+          - action: automation.turn_on
+            metadata: {}
+            data: {}
+            target:
+              entity_id:
+                - >-
+                  automation.upravlenie_rezhimom_raspisanie_urok_peremena_nerabochee_avto_podkhvat_schedule
+          - action: notify.persistent_notification
+            data:
+              message: |
+                {{ now().strftime('%H:%M:%S') }}    
+                ▸ Выбран режим работы (текст): " ✅ Рабочий режим"
+              title: ✅ Изменение режима работы освещения школы!
+      - conditions:
+          - alias: Не рабочий режим
+            condition: template
+            value_template: >-
+              {{ states('sensor.tekushchii_rezhi_raboty_kolledzha') == "Работа
+              по датчикам" }}
+        sequence:
+          - action: input_text.set_value
+            metadata: {}
+            data:
+              value: Не рабочее время
+            target:
+              entity_id: input_text.regim_work_colledge
+            alias: Не рабочее время
+          - delay:
+              hours: 0
+              minutes: 0
+              seconds: 12
+              milliseconds: 0
+          - action: automation.turn_off
+            metadata: {}
+            data:
+              stop_actions: true
+            target:
+              entity_id:
+                - >-
+                  automation.upravlenie_rezhimom_raspisanie_urok_peremena_nerabochee_avto_podkhvat_schedule
+          - action: notify.persistent_notification
+            data:
+              message: |
+                {{ now().strftime('%H:%M:%S') }}    
+                ▸ Выбран режим работы (текст): " 🟦 Не рабочий режим"
+              title: ✅ Изменение режима работы освещения школы!
+      - conditions:
+          - alias: Ручной
+            condition: template
+            value_template: >-
+              {{ states('sensor.tekushchii_rezhi_raboty_kolledzha') == "Ручной
+              режим" }}
+        sequence:
+          - alias: Ручной
+            action: input_text.set_value
+            metadata: {}
+            data:
+              value: Ручной
+            target:
+              entity_id: input_text.regim_work_colledge
+          - action: automation.turn_off
+            metadata: {}
+            data:
+              stop_actions: true
+            target:
+              entity_id:
+                - >-
+                  automation.upravlenie_rezhimom_raspisanie_urok_peremena_nerabochee_avto_podkhvat_schedule
+          - action: notify.persistent_notification
+            data:
+              message: |
+                {{ now().strftime('%H:%M:%S') }}    
+                ▸ Выбран режим работы (текст): " 🟩 Ручной режим"
+              title: ✅ Изменение режима работы освещения школы!
+mode: single
