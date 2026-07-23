@@ -477,6 +477,22 @@ schedule + profiles + cascade и решает про задержки, стар�
 
 _Пополняется по ходу работы: дата, этап, что сделано, факт прохождения критериев._
 
+### Этап 0 — выполнен 2026-07-23
+Каркас пакета и инфраструктура тестов.
+- Структура `custom_components/building_automation/` (`__init__.py`,
+  `const.py`, `manifest.json`, пакеты `domain/`/`adapters/`/`entities/`),
+  `tests/` + `tests/domain/`.
+- Архитектурный сторож `tests/import_guard.py` + `tests/test_no_hass_in_domain.py`
+  (SPEC §5.7, §2.4): AST-скан запрещённых импортов, 13 срезов (6 ловит,
+  6 разрешает, 1 на реальном `domain/`).
+- venv на `/usr/bin/python3.14` (3.14.4); `pytest`/`mypy`/`ruff` в строю.
+  `mutmut` установлен, конфиг — на этапе 1 (нужен `source_paths`).
+- pyproject: заглушены `RUF001/002/003` (проект русскоязычный).
+- **Факты:** pytest 13 passed; ruff check All passed; ruff format 9 ok;
+  `mypy --strict custom_components` 0; сторож доказанно падает на подсунутом
+  `import homeassistant` в `domain/` и зеленеет после удаления.
+- Закрыто: SPEC §5.7, §2.4, §2.5.
+
 ### 1.1 — 2026-07-22 (аудит по шагу 4)
 Правки после аудита плана на 100 % покрытие:
 - этап 1: добавлен mutation `schedule.py` ≥ 70 % (§6 требовал, план упускал);
