@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 from enum import StrEnum
+from typing import Any
 
 type FloorId = str
 type AreaId = str
@@ -87,3 +89,41 @@ class ScheduleResolution:
     mode: ScheduleMode
     source_available: bool
     overlap: tuple[ScheduleMode, ...]
+
+
+@dataclass(frozen=True)
+class Action:
+    """Одно действие профиля: сервисный вызов к групповому светильнику.
+
+    Домен ограничен `light`/`switch`, сервис — `turn_on`/`turn_off`
+    (валидируется в storage_schema, SPEC §4.2 ТЗ).
+    """
+
+    domain: str
+    service: str
+    data: Mapping[str, Any] = field(default_factory=dict)
+
+
+# Набор действий — кортеж ради хешируемости (нужна для схлопывания, SPEC §4.1).
+type ActionSet = tuple[Action, ...]
+
+
+@dataclass(frozen=True)
+class ModeSettings:
+    """Настройки режима с областью действия «здание» (SPEC §5.1 ТЗ)."""
+
+    delay_seconds: int
+    sensors_allowed: bool
+    sensors_allowed_by_floor: Mapping[FloorId, bool] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class Config:
+    """Конфигурация Оркестратора: профили и настройки режимов (SPEC §3.1)."""
+
+    modes: Mapping[ScheduleMode, ModeSettings]
+    actions_object: Mapping[ScheduleMode, ActionSet]
+    actions_by_floor: Mapping[tuple[FloorId, ScheduleMode], ActionSet]
+    actions_by_room_type: Mapping[tuple[RoomType, ScheduleMode], ActionSet]
+    actions_by_area: Mapping[tuple[AreaId, ScheduleMode], ActionSet]
+    fallback_mode: ScheduleMode

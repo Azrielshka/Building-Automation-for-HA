@@ -476,6 +476,18 @@ schedule + profiles + cascade и решает про задержки, стар�
 
 _Пополняется по ходу работы: дата, этап, что сделано, факт прохождения критериев._
 
+### Этап 3 (конфигурация и хранилище) — выполнен 2026-07-23
+Типы `Config`/`Action`/`ActionSet`/`ModeSettings`; `domain/storage_schema.py`
+(load/dump/migrate); адаптер `adapters/store.py` (`Store` + `_async_migrate_func`).
+- TDD, сценарии SPEC §5.6: round-trip (мин/полный), белый список доменов,
+  запрет `toggle`, неверный тип → `ConfigValidationError` с местом, неизвестное
+  поле игнорируется, отсутствующие секции, миграция v1, bool≠int.
+- Валидация **ручная** (без `voluptuous` — HA-зависимость вне ядра).
+- **Факты:** pytest 33 passed; покрытие ветвей `storage_schema.py` **100%**;
+  mutation **224/247 killed (91%)** — оставшиеся 23 выживших — строки-места и
+  тексты сообщений об ошибках (не бизнес-логика); ruff/mypy --strict чисто.
+- Закрыто: SPEC §5.6; критерий «миграция покрыта тестом» (§6).
+
 ### Этап 2 (ядро топологии) — выполнен 2026-07-23
 `domain/topology.py` + типы `Floor`/`Room`/`RoomType`/`AreaStatus`.
 - TDD, сценарии SPEC §5.2: `evaluate_area` (OK / NO_LIGHT / MULTIPLE_LIGHTS),
