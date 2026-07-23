@@ -193,7 +193,9 @@ action)` плюс отчёт о пропущенных помещениях с �
 BUILDING_MANUAL → FLOOR_MANUAL → OPT_OUT → ORPHANED → INVARIANT_BROKEN
 ```
 
-`OPT_OUT` проверяется **до** инварианта намеренно: opt-out — сознательное
+`ORPHANED` в этом порядке применяется к **сиротам** (area вне снимка,
+`orphaned_area_ids`) и с прочими причинами не пересекается — помещения снимка её
+не получают. `OPT_OUT` проверяется **до** инварианта намеренно: opt-out — сознательное
 исключение помещения из управления, команды по нему всё равно не будет.
 Проверять для него инвариант незачем, а пометка `INVARIANT_BROKEN` на исключённом
 помещении была бы ложной аварией. Пример: в Area актового зала (он под opt-out)
@@ -217,11 +219,15 @@ def decide(
 
 **Интерфейс.** Единственная точка, где живёт политика «что делать сейчас».
 
-- `Input` — `ScheduleChanged | ControlModeChanged | TimerFired | Started |
-  RegistryChanged | ReapplyRequested`.
+- `Input` — `ScheduleChanged | TimerFired | Started | ControlModeChanged`
+  (реализовано в `types.py`). Изменение реестра и `reapply` обрабатывает
+  **оболочка**: координатор пересобирает снимок топологии и вызывает `decide` с
+  обычным входом — отдельных вариантов `RegistryChanged`/`ReapplyRequested` в
+  ядре нет.
 - `Decision` — новое состояние, план каскада (или его отсутствие), операция с
-  таймером (`SetTimer(delay, target) | CancelTimer | NoTimerOp`), кортеж
-  доменных событий, значения гейтов по этажам.
+  таймером (`SetTimer(apply_at, target_mode) | CancelTimer | NoTimerOp`; `apply_at`
+  — **абсолютный** момент `now + delay`, не задержка), кортеж доменных событий,
+  значения гейтов по этажам.
 - **Время передаётся явно** параметром `now` — функция детерминирована и не
   зависит от системных часов.
 
@@ -336,8 +342,13 @@ tests/
 ### 3.1. Типы ядра
 
 Все — `frozen=True` датаклассы либо `StrEnum`; изменяемых структур в ядре нет.
-Неизменяемость нужна, чтобы `decide` был повторяем в тестах и чтобы наборы
-действий были хешируемы (§4.3).
+Неизменяемость нужна, чтобы `decide` был повторяем в тестах. `Action`/`ActionSet`
+**нехешируемы** (в `data` могут быть списки), поэтому однородность каскада
+определяется JSON-ключом, а не хешем (§4.1).
+
+Ниже — ключевые типы; полный список из ~34 объявлений — в `domain/types.py`.
+Типы машины состояний (`OrchestratorState`, входы `Input`, `TimerOp`,
+`DomainEvent`, `Decision`) — в §3.1.1.
 
 ```python
 type FloorId = str                  # id этажа (Floor) из реестра HA
@@ -358,7 +369,7 @@ class Action:                       # домен ограничен light|switch
     service: str
     data: Mapping[str, Any]         # для light.turn_on — brightness_pct и т.п.
 
-type ActionSet = tuple[Action, ...] # кортеж: нужна хешируемость для группировки
+type ActionSet = tuple[Action, ...] # кортеж; однородность — по JSON-ключу (§4.1)
 
 @dataclass(frozen=True)
 class ControlState:                 # снимок режима управления, вход plan_cascade
@@ -381,16 +392,56 @@ class Config:
     fallback_mode: ScheduleMode
 ```
 
+Прочие типы данных: `Floor`, `Room` (§2.2.2), `ScheduleEvent`, `ScheduleResolution`
+(§2.2.1), `Command`, `SkipEntry`, `CascadePlan` (§2.2.4).
+
+### 3.1.1. Типы машины состояний
+
+```python
+type Instant = float                # монотонное время в секундах (параметр now)
+
+class EventSource(StrEnum):         # schedule | manual (manual — резерв, см. §7)
+
+@dataclass(frozen=True)
+class PendingTransition:            # target_mode, apply_at
+@dataclass(frozen=True)
+class OrchestratorState:            # полный вход/выход decide
+    config: Config
+    topology: TopologySnapshot
+    control: ControlState
+    schedule_mode: ScheduleMode
+    source_available: bool
+    applied_mode: ScheduleMode | None   # None = ничего не применено (до старта)
+    pending: PendingTransition | None
+
+# Входы (union): ScheduleChanged(resolution) | TimerFired | Started(resolution)
+#              | ControlModeChanged(building?, floor_id?, floor_control?)
+# TimerOp:     NoTimerOp | SetTimer(apply_at, target_mode) | CancelTimer
+# DomainEvent: ModeChanged(new_mode, previous_mode, source)
+#            | ModeWarning(target_mode, apply_at) | TransitionCancelled(cancelled_mode)
+
+@dataclass(frozen=True)
+class Decision:
+    state: OrchestratorState
+    plan: CascadePlan | None
+    timer_op: TimerOp
+    events: tuple[DomainEvent, ...]
+    gates: Mapping[FloorId, bool]
+```
+
 ### 3.2. Схема хранилища
 
 В `.storage` пишется только конфигурация (профили и настройки режимов).
 Топология, имена и состав помещений не дублируются — они в реестре.
 
+Конверт `version`/`minor_version`/`data` добавляет обёртка `Store` (adapters/store.py);
+ядро (`dump_config`/`load_config`) оперирует **только содержимым `data`**.
+
 ```jsonc
 {
-  "version": 1,
-  "minor_version": 1,
-  "data": {
+  "version": 1,          // ← конверт Store
+  "minor_version": 1,    // ← конверт Store
+  "data": {              // ← это возвращает/принимает dump_config/load_config
     "fallback_mode": "off",
     "modes": {
       "lesson": { "delay_seconds": 300, "sensors_allowed": true,
@@ -424,7 +475,7 @@ class Config:
 | `resolve_schedule_mode` | O(S) | O(1) | на каждое изменение расписания |
 | Сборка `TopologySnapshot` | O(E) | O(A + L) | только на изменение реестра |
 | `resolve_actions` | O(A) | O(A) | на каждую смену режима |
-| `plan_cascade` | O(A) | O(A) | на каждое применение |
+| `plan_cascade` | O(F·A) | O(A) | на каждое применение (F=этажей, константа) |
 | `decide` | O(1) сверх вызовов выше | O(1) | на каждый вход |
 
 **Итого на звонок — O(A)**, при A ≤ 50 это микросекунды. Дорогая операция
@@ -460,7 +511,8 @@ class Config:
   выигрыша.
 - **Неизменяемые снимки** вместо ссылок на реестр — ядро остаётся чистым, а
   повторный вызов `decide` на тех же данных даёт тот же результат, что и есть
-  условие воспроизводимости тестов.
+  условие воспроизводимости тестов. (`Action` при этом нехешируем — однородность
+  каскада идёт по JSON-ключу, §4.1.)
 - **Один отложенный переход** (следствие решения §7.4) хранится как поле
   состояния, а не как коллекция таймеров: отмена — присваивание, а не обход.
 
@@ -581,7 +633,8 @@ class Config:
 
 Сценарий: Срабатывание таймера применяет отложенный режим
 Сценарий: Новая смена во время задержки отменяет прежний переход
-  Тогда решение содержит CancelTimer, событие отмены, новый SetTimer
+  Тогда решение содержит новый SetTimer и событие отмены (TransitionCancelled);
+  замена таймера неявная — timer_op одиночный, отдельного CancelTimer нет
   И переход в прежний целевой режим не выполняется
 
 Сценарий: Старт при совпадении режима не применяет действия
@@ -728,7 +781,8 @@ score ловит тесты, которые исполняют код, но ни
 
 ### 7.6. Схлопывание по совпадению набора действий
 
-**Выбрано:** однородность = совпадение `ActionSet`; кортеж ради хешируемости.
+**Выбрано:** однородность = совпадение `ActionSet` по каноничному JSON-ключу
+(`Action` нехешируем — в `data` бывают списки; хеш неприменим).
 **Отвергнуто:** попарное сравнение помещений — O(A²) без выигрыша.
 **Отвергнуто:** учитывать в однородности ещё и задержку — не требуется, задержка
 общая на здание (§7.4).
@@ -766,9 +820,9 @@ score ловит тесты, которые исполняют код, но ни
 |---|---|---|---|
 | 1 | HA-обвязка не покрыта тестами и не проверяется типами (пакет `homeassistant` не установлен) | ошибки использования HA-API находятся только на объекте | принято; смягчено §2.1 и ручным чек-листом |
 | 2 | ~~Группа тех.помещений этажа~~ | — | **закрыт** 2026-07-22: технические помещения выведены из управления по расписанию, см. §7.8 |
-| 3 | Имена меток `ba_floor_area`, `ba_type_*` не согласованы | зашиваются в `const.py` | согласовать до реализации |
+| 3 | ~~Имена меток `ba_floor_area`, `ba_type_*`~~ | — | **закрыт** 2026-07-23: метки созданы генератором и проверены на песочнице (этап 2). Остаётся `ba_optout` — ставится вручную, ещё не создан |
 | 4 | Поведение DALI-интеграции с `suggested_area` неизвестно | лампы могут приезжать в Area при расширении объекта и ломать инвариант | на новых объектах не критично; проверить на объекте |
-| 5 | Blueprint'ы с гейтом должны быть выкачены до полевого теста | без них режимы не влияют на датчики | зависимость от смежного проекта, порядок описан в контракте |
+| 5 | ~~Blueprint'ы с гейтом~~ | — | **закрыт** 2026-07-23: гейт реализован во всех 6 blueprint `zm_*` на песочнице, форма верная (`condition: template`, fail-open) |
 | 6 | Система датчиков на объекте не работает без JSON Zone Manager | проверить гейт в поле будет не на чем | зависимость вне обоих проектов |
 
 ---
