@@ -7,7 +7,7 @@
   "issue_tracker": "https://github.com/Azrielshka/Building-Automation-for-HA/issues",
   "dependencies": [],
   "requirements": [],
-  "integration_type": "system",
+  "integration_type": "hub",
   "iot_class": "calculated",
   "config_flow": true
 }

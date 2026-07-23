@@ -228,8 +228,10 @@ class BuildingStore(Store[dict[str, Any]]):
 HACS). Опционально: `config_flow`, `after_dependencies`, `loggers`,
 `single_config_entry`.
 
-Для нашего случая: `integration_type: "system"` (или `"hub"` — решается в SPEC),
-`iot_class: "calculated"` — интеграция ничего не опрашивает, а вычисляет режим из
+Для нашего случая: **`integration_type: "hub"`** (не `"system"` — системные
+интеграции намеренно скрыты из UI-списка «Добавить интеграцию», проверено на
+объекте 2026-07-23), `iot_class: "calculated"` — интеграция ничего не опрашивает,
+а вычисляет режим из
 чужих сущностей.
 
 ### Шкала качества
