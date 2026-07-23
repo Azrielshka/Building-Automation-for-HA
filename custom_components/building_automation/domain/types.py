@@ -20,6 +20,34 @@ class ScheduleMode(StrEnum):
     WINDOW = "window"
 
 
+class ControlMode(StrEnum):
+    """Режим управления зданием (SPEC §4.1 ТЗ)."""
+
+    AUTO = "auto"
+    MANUAL = "manual"
+
+
+class FloorControl(StrEnum):
+    """Режим управления этажа: по зданию либо ручной стоп."""
+
+    BY_BUILDING = "by_building"
+    MANUAL = "manual"
+
+
+class SkipReason(StrEnum):
+    """Причина, по которой помещение пропущено каскадом (SPEC §2.2.4).
+
+    Порядок проверки фиксирован: BUILDING_MANUAL → FLOOR_MANUAL → OPT_OUT →
+    ORPHANED → INVARIANT_BROKEN.
+    """
+
+    BUILDING_MANUAL = "building_manual"
+    FLOOR_MANUAL = "floor_manual"
+    OPT_OUT = "opt_out"
+    ORPHANED = "orphaned"
+    INVARIANT_BROKEN = "invariant_broken"
+
+
 class AreaStatus(StrEnum):
     """Статус инварианта Area (SPEC §3.3 ТЗ).
 
@@ -127,3 +155,35 @@ class Config:
     actions_by_room_type: Mapping[tuple[RoomType, ScheduleMode], ActionSet]
     actions_by_area: Mapping[tuple[AreaId, ScheduleMode], ActionSet]
     fallback_mode: ScheduleMode
+
+
+@dataclass(frozen=True)
+class ControlState:
+    """Снимок режима управления — вход планировщика каскада (SPEC §2.2.4)."""
+
+    building: ControlMode
+    floors: Mapping[FloorId, FloorControl] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class Command:
+    """Одна команда каскада: применить действие к целевой Area."""
+
+    target_area_id: AreaId
+    action: Action
+
+
+@dataclass(frozen=True)
+class SkipEntry:
+    """Пропущенное помещение с причиной."""
+
+    area_id: AreaId
+    reason: SkipReason
+
+
+@dataclass(frozen=True)
+class CascadePlan:
+    """План каскада: команды к исполнению и отчёт о пропусках (SPEC §2.2.4)."""
+
+    commands: tuple[Command, ...]
+    skipped: tuple[SkipEntry, ...]
