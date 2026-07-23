@@ -211,8 +211,6 @@ def test_all_empty_sets_collapse_no_commands() -> None:
 def test_expanded_commands_carry_their_actions() -> None:
     """При развороте каждая команда несёт действие своего помещения."""
     other = Action("light", "turn_on", {"brightness_pct": 100})
-    plan = plan_cascade(
-        _floor_snapshot(), {"a1": (_ACTION,), "a2": (other,)}, _AUTO
-    )
+    plan = plan_cascade(_floor_snapshot(), {"a1": (_ACTION,), "a2": (other,)}, _AUTO)
     by_target = {c.target_area_id: c.action for c in plan.commands}
     assert by_target == {"a1": _ACTION, "a2": other}

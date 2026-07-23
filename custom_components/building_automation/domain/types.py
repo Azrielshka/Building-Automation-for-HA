@@ -5,7 +5,12 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    # Разрыв цикла: topology импортирует types (Floor/Room/AreaStatus),
+    # а OrchestratorState ссылается на TopologySnapshot только в аннотации.
+    from .topology import TopologySnapshot
 
 type FloorId = str
 type AreaId = str
@@ -187,3 +192,133 @@ class CascadePlan:
 
     commands: tuple[Command, ...]
     skipped: tuple[SkipEntry, ...]
+
+
+# --- Машина состояний (SPEC §2.2.5) ---
+
+type Instant = float  # монотонное время в секундах; приходит параметром now
+
+
+class EventSource(StrEnum):
+    """Источник смены режима в доменном событии."""
+
+    SCHEDULE = "schedule"
+    MANUAL = "manual"
+
+
+@dataclass(frozen=True)
+class PendingTransition:
+    """Отложенный переход: целевой режим и момент применения."""
+
+    target_mode: ScheduleMode
+    apply_at: Instant
+
+
+@dataclass(frozen=True)
+class OrchestratorState:
+    """Полное состояние Оркестратора — вход и выход `decide`.
+
+    Несёт снимки `config` и `topology`, чтобы `decide` был самодостаточным.
+    `applied_mode` = None означает «ничего ещё не применено» (до первого старта).
+    """
+
+    config: Config
+    topology: TopologySnapshot
+    control: ControlState
+    schedule_mode: ScheduleMode
+    source_available: bool
+    applied_mode: ScheduleMode | None
+    pending: PendingTransition | None
+
+
+# Входы decide (дискриминируемый union).
+@dataclass(frozen=True)
+class ScheduleChanged:
+    """Источник расписания пересчитан."""
+
+    resolution: ScheduleResolution
+
+
+@dataclass(frozen=True)
+class TimerFired:
+    """Сработал таймер отложенного перехода."""
+
+
+@dataclass(frozen=True)
+class Started:
+    """Старт Home Assistant: сверка сохранённого режима с вычисленным."""
+
+    resolution: ScheduleResolution
+
+
+@dataclass(frozen=True)
+class ControlModeChanged:
+    """Переключение режима управления зданием или этажом."""
+
+    building: ControlMode | None = None
+    floor_id: FloorId | None = None
+    floor_control: FloorControl | None = None
+
+
+type Input = ScheduleChanged | TimerFired | Started | ControlModeChanged
+
+
+# Операции с таймером отложенного перехода.
+@dataclass(frozen=True)
+class NoTimerOp:
+    """Таймер не трогать."""
+
+
+@dataclass(frozen=True)
+class SetTimer:
+    """Завести таймер отложенного перехода."""
+
+    apply_at: Instant
+    target_mode: ScheduleMode
+
+
+@dataclass(frozen=True)
+class CancelTimer:
+    """Снять отложенный переход."""
+
+
+type TimerOp = NoTimerOp | SetTimer | CancelTimer
+
+
+# Доменные события.
+@dataclass(frozen=True)
+class ModeChanged:
+    """Режим фактически сменён."""
+
+    new_mode: ScheduleMode
+    previous_mode: ScheduleMode | None
+    source: EventSource
+
+
+@dataclass(frozen=True)
+class ModeWarning:
+    """Предупреждение о предстоящей смене режима."""
+
+    target_mode: ScheduleMode
+    apply_at: Instant
+
+
+@dataclass(frozen=True)
+class TransitionCancelled:
+    """Отложенный переход отменён."""
+
+    cancelled_mode: ScheduleMode
+
+
+type DomainEvent = ModeChanged | ModeWarning | TransitionCancelled
+
+
+@dataclass(frozen=True)
+class Decision:
+    """Решение машины: новое состояние и что исполнить (SPEC §2.2.5)."""
+
+    state: OrchestratorState
+    plan: CascadePlan | None
+    timer_op: TimerOp
+    events: tuple[DomainEvent, ...]
+    gates: Mapping[FloorId, bool]
