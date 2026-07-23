@@ -156,6 +156,15 @@ npx prettier --check .
 зависимость **только для проверки типов** (без запуска тестов с ним): это
 вернёт mypy зрение по обвязке, не меняя тестовый стек.
 
+**Как это настроено в `pyproject.toml`.** Ядро `domain/` — полный `mypy --strict`.
+Обвязочные модули наследуют классы HA, которые без пакета видны как `Any`, из-за
+чего strict-проверки (`misc`, `no-any-return`, `untyped-decorator`, `call-arg`)
+шумят на пустом месте. Для них — отдельный `[[tool.mypy.overrides]]`,
+отключающий именно эти коды; список модулей пополняется при добавлении новой
+обвязки. Плюс `mypy_path="."` + `namespace_packages` + `explicit_package_bases` —
+без них mypy именует модули `building_automation.*` и overrides не матчатся
+(пакет `custom_components` — namespace, без `__init__`).
+
 ---
 
 ## 6. API-контракт HA: что использовать и чего избегать

@@ -70,6 +70,11 @@ fixture-parentheses = false
 [tool.mypy]
 python_version = "3.14"
 strict = true
+# custom_components — namespace package (без __init__): без этого mypy именует
+# модули как building_automation.* и per-module overrides не матчатся.
+mypy_path = "."
+namespace_packages = true
+explicit_package_bases = true
 # Дополнительно к strict — то, что HA core включает у себя:
 local_partial_types = true
 strict_equality = true
@@ -94,6 +99,27 @@ disable_error_code = [
 [[tool.mypy.overrides]]
 module = "tests.*"
 disallow_untyped_defs = false
+
+# Обвязочные модули наследуют и вызывают классы Home Assistant, которые без
+# установленного пакета видны как Any. Проверки, завязанные на Any-происхождение
+# (наследование от Any, возврат Any, untyped-декоратор HA, kwargs метаклассов),
+# на таком коде бессмысленны — это принятая цена SPEC §2.1 (пакет homeassistant
+# не ставится). Ядро domain/ остаётся полностью strict. Новый обвязочный модуль
+# добавлять в этот список.
+[[tool.mypy.overrides]]
+module = [
+    "custom_components.building_automation",
+    "custom_components.building_automation.coordinator",
+    "custom_components.building_automation.config_flow",
+    "custom_components.building_automation.sensor",
+    "custom_components.building_automation.adapters.*",
+]
+disable_error_code = [
+    "misc",
+    "no-any-return",
+    "untyped-decorator",
+    "call-arg",
+]
 
 [tool.pytest.ini_options]
 # Пакет homeassistant не устанавливается: тесты покрывают только чистую логику

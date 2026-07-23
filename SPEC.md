@@ -305,17 +305,23 @@ custom_components/building_automation/
 │   ├── timers.py
 │   ├── store.py
 │   └── publisher.py
-├── entities/
-│   ├── select.py           # режим управления здания: Авто / Ручной
-│   ├── switch.py           # режим управления этажа: тумблер, ON = автоматика
-│   ├── sensor.py           # режим расписания, отложенный переход, применённый
-│   └── binary_sensor.py    # доступность источника, гейты по этажам
+│   # ПЛАТФОРМЫ сущностей — в КОРНЕ пакета: HA грузит их как
+│   # <интеграция>/<platform>.py, подпапку loader не сканирует.
+├── select.py               # режим управления здания: Авто / Ручной
+├── switch.py               # режим управления этажа: тумблер, ON = автоматика
+├── sensor.py               # режим расписания, отложенный переход, применённый
+├── binary_sensor.py        # доступность источника, гейты по этажам
 ├── manifest.json
 └── www/                    # панель (vanilla JS + Lit, см. javascript-guidelines)
 tests/
 ├── domain/                 # основное покрытие
+├── import_guard.py         # AST-сканер для сторожа
 └── test_no_hass_in_domain.py   # тест-сторож §2.4
 ```
+
+> **Платформы в корне, не в `entities/`.** Ранняя раскладка помещала их в
+> `entities/`; Home Assistant так их не находит — loader ищет платформу по пути
+> `custom_components/<домен>/<платформа>.py`. Исправлено на этапе 1b.
 
 ---
 

@@ -4,10 +4,12 @@
 (чистые функции без `hass`); связывание с Home Assistant — в `adapters` и
 `coordinator`. См. SPEC §2.
 
-Типы Home Assistant импортируются только под `TYPE_CHECKING`: пакет
-`homeassistant` не установлен в среде разработки (SPEC §2.1), а импорт этого
-модуля неизбежно происходит при загрузке любого подмодуля `domain` — ядро должно
-оставаться импортируемым без HA.
+Импорты Home Assistant здесь — только под `TYPE_CHECKING` или **отложенные внутри
+функций**. Причина: пакет `homeassistant` не установлен в среде разработки
+(SPEC §2.1), а этот модуль неизбежно загружается при импорте любого подмодуля
+`domain` — ядро должно оставаться импортируемым без HA. Обвязочные модули
+(`coordinator`, платформы) грузятся отложенно, только когда HA реально вызывает
+setup.
 """
 
 from __future__ import annotations
@@ -20,13 +22,21 @@ if TYPE_CHECKING:
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Настроить config entry.
+    """Настроить config entry: координатор и платформа sensor (этап 1)."""
+    # Отложенные импорты — разрыв зависимости ядра от HA (см. docstring модуля).
+    from homeassistant.const import Platform  # noqa: PLC0415
 
-    Каркас этапа 0: платформы и координатор появляются на этапе 1.
-    """
+    from .coordinator import BuildingCoordinator  # noqa: PLC0415
+
+    coordinator = BuildingCoordinator(hass, entry)
+    await coordinator.async_config_entry_first_refresh()
+    entry.runtime_data = coordinator
+    await hass.config_entries.async_forward_entry_setups(entry, [Platform.SENSOR])
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Выгрузить config entry."""
-    return True
+    """Выгрузить config entry и его платформы."""
+    from homeassistant.const import Platform  # noqa: PLC0415
+
+    return await hass.config_entries.async_unload_platforms(entry, [Platform.SENSOR])
