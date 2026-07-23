@@ -101,6 +101,15 @@ disallow_untyped_defs = false
 asyncio_mode = "auto"
 testpaths = ["tests"]
 addopts = "--strict-markers"
+pythonpath = ["."]
+
+[tool.mutmut]
+# Только модули бизнес-логики (SPEC §6). types.py — дата-классы/enum,
+# мутанты там ложные. Список расширяется по мере роста ядра, поэтапно.
+paths_to_mutate = [
+    "custom_components/building_automation/domain/",
+]
+tests_dir = ["tests/"]
 
 [tool.coverage.run]
 source = ["custom_components/building_automation"]
