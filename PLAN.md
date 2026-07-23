@@ -476,6 +476,16 @@ schedule + profiles + cascade и решает про задержки, стар�
 
 _Пополняется по ходу работы: дата, этап, что сделано, факт прохождения критериев._
 
+### Этап 4 (профили и наследование) — выполнен 2026-07-23
+`domain/profiles.py` — `resolve_actions(config, topology, mode)`.
+- TDD, сценарии SPEC §5.3: наследование этажа, приоритет
+  помещение → тип → этаж → объект (полный стек), пустой набор, тип без профиля →
+  этаж, независимое наследование нескольких помещений.
+- **Факты:** pytest 43 passed; покрытие ветвей `profiles.py` **100%**;
+  mutation **241/264 killed (91%)** — выжившие те же (тексты сообщений в
+  storage_schema); ruff/mypy --strict чисто.
+- Закрыто: SPEC §5.3.
+
 ### Этап 3 (конфигурация и хранилище) — выполнен 2026-07-23
 Типы `Config`/`Action`/`ActionSet`/`ModeSettings`; `domain/storage_schema.py`
 (load/dump/migrate); адаптер `adapters/store.py` (`Store` + `_async_migrate_func`).
