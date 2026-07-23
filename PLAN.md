@@ -476,6 +476,16 @@ schedule + profiles + cascade и решает про задержки, стар�
 
 _Пополняется по ходу работы: дата, этап, что сделано, факт прохождения критериев._
 
+### Этап 2 (ядро топологии) — выполнен 2026-07-23
+`domain/topology.py` + типы `Floor`/`Room`/`RoomType`/`AreaStatus`.
+- TDD, сценарии SPEC §5.2: `evaluate_area` (OK / NO_LIGHT / MULTIPLE_LIGHTS),
+  `TopologySnapshot.rooms_of` (без агрегатной Area), `aggregate_area_of`.
+- Обновлён конфиг mutmut: `paths_to_mutate`→`source_paths` (убран deprecation).
+- **Факты:** pytest 24 passed; покрытие ветвей `topology.py` **100%**;
+  mutation **28/28 killed**; ruff/mypy --strict чисто.
+- Закрыто: SPEC §5.2 (ядро). Осталось: адаптер `registry.py` (оболочка) —
+  зависит от согласованных меток `ba_floor_area`/`ba_type_*`.
+
 ### Этап 1a (ядро расписания) — выполнен 2026-07-23
 `domain/schedule.py` + `domain/types.py` — разрешение режима расписания.
 - TDD, сценарии SPEC §5.1: 4 цикла RED→GREEN (одно событие, пустой вход,

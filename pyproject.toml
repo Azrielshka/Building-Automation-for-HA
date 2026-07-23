@@ -130,12 +130,11 @@ addopts = "--strict-markers"
 pythonpath = ["."]
 
 [tool.mutmut]
-# Только модули бизнес-логики (SPEC §6). types.py — дата-классы/enum,
-# мутанты там ложные. Список расширяется по мере роста ядра, поэтапно.
-paths_to_mutate = [
+# Всё ядро domain/ (SPEC §6). Мутанты в types.py (дата-классы/enum) тесты тоже
+# ловят через использование. Расширяется по мере роста ядра.
+source_paths = [
     "custom_components/building_automation/domain/",
 ]
-tests_dir = ["tests/"]
 
 [tool.coverage.run]
 source = ["custom_components/building_automation"]
