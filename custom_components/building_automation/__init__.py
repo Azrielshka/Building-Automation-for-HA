@@ -28,12 +28,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Отложенные импорты — разрыв зависимости ядра от HA (см. docstring модуля).
     from .const import PLATFORMS  # noqa: PLC0415
     from .coordinator import BuildingCoordinator  # noqa: PLC0415
+    from .websocket_api import async_register_commands  # noqa: PLC0415
 
     coordinator = BuildingCoordinator(hass, entry)
     await coordinator.async_config_entry_first_refresh()
     entry.runtime_data = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, list(PLATFORMS))
     _async_register_services(hass, coordinator)
+    async_register_commands(hass)
     return True
 
 

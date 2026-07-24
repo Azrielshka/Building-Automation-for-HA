@@ -44,6 +44,7 @@ from .adapters.timers import DelayedTransitionTimer
 from .const import CONF_FALLBACK, CONF_SCHEDULE_SOURCE, DOMAIN
 from .domain.machine import decide
 from .domain.schedule import resolve_schedule_mode
+from .domain.storage_schema import dump_config, load_config
 from .domain.types import (
     Config,
     ControlMode,
@@ -59,10 +60,12 @@ from .domain.types import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import Event, EventStateChangedData, HomeAssistant
 
-    from .domain.types import FloorId, Input, ScheduleResolution
+    from .domain.types import CascadePlan, FloorId, Input, ScheduleResolution
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -98,8 +101,13 @@ class BuildingCoordinator(DataUpdateCoordinator[OrchestratorState]):
         self._config_store = ConfigStore(hass)
         self._timer = DelayedTransitionTimer()
         self._lock = asyncio.Lock()
+        # Отдельный лок конфигурации: точечные операции панели — read-modify-write,
+        # их нельзя чередовать, иначе одна затрёт узел другой (ТЗ §11.1).
+        self._config_lock = asyncio.Lock()
+        self._config: Config | None = None
         self._topology_dirty = False
         self.gates: dict[FloorId, bool] = {}
+        self.last_plan: CascadePlan | None = None
 
     # --- Снимки ---------------------------------------------------------
 
@@ -113,6 +121,7 @@ class BuildingCoordinator(DataUpdateCoordinator[OrchestratorState]):
         config = await self._config_store.async_load()
         if config is None:
             config = _default_config(self._fallback)
+        self._config = config
         topology = build_topology_snapshot(self.hass)
         resolution = self._read_resolution()
         return OrchestratorState(
@@ -197,6 +206,26 @@ class BuildingCoordinator(DataUpdateCoordinator[OrchestratorState]):
         self._topology_dirty = True
         await self._dispatch(ScheduleChanged(self._read_resolution()))
 
+    @property
+    def config(self) -> Config:
+        """Актуальная конфигурация профилей."""
+        return self._config if self._config is not None else self.data.config
+
+    async def async_mutate_config(self, mutate: Callable[[Config], Config]) -> None:
+        """Атомарно изменить один узел конфигурации, сохранить и применить.
+
+        Read-modify-write под отдельным локом (ТЗ §11.1): точечные операции
+        панели не чередуются и не затирают друг друга. Результат прогоняется
+        через `dump_config`/`load_config` — та же валидация, что для
+        недоверенного входа из хранилища (белый список доменов и сервисов).
+        """
+        async with self._config_lock:
+            updated = mutate(self.config)
+            validated = load_config(dump_config(updated))
+            await self._config_store.async_save(validated)
+            self._config = validated
+        await self._dispatch(ScheduleChanged(self._read_resolution()))
+
     def gate_for(self, floor_id: FloorId) -> bool:
         """Значение гейта этажа (True = датчики разрешены); по умолчанию открыт."""
         return self.gates.get(floor_id, True)
@@ -207,6 +236,8 @@ class BuildingCoordinator(DataUpdateCoordinator[OrchestratorState]):
         """Один цикл: снимок → decide → исполнение → рассылка сущностям."""
         async with self._lock:
             state = self.data
+            if self._config is not None and state.config is not self._config:
+                state = replace(state, config=self._config)
             if self._topology_dirty:
                 state = replace(state, topology=build_topology_snapshot(self.hass))
                 self._topology_dirty = False
@@ -214,6 +245,7 @@ class BuildingCoordinator(DataUpdateCoordinator[OrchestratorState]):
             decision = decide(state, inp, now)
 
             if decision.plan is not None:
+                self.last_plan = decision.plan
                 await execute_plan(self.hass, decision.plan)
             self._timer.apply(self.hass, decision.timer_op, now, self._on_timer_fire)
             publish_events(self.hass, decision.events)
