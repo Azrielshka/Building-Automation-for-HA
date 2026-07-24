@@ -240,23 +240,49 @@ def test_building_manual_event_closes_gates_no_plan() -> None:
     assert all(not g for g in decision.gates.values())
 
 
-def test_floor_return_to_auto_applies_without_delay() -> None:
-    """Возврат этажа в авто применяет актуальный режим без задержки."""
+def test_floor_return_to_auto_applies_current_schedule() -> None:
+    """Возврат этажа в авто применяет ТЕКУЩИЙ режим расписания без задержки.
+
+    Если за время ручного расписание уехало (schedule_mode ≠ applied_mode),
+    возврат должен догнать расписание, а не восстановить устаревший applied.
+    """
 
     state = _state(
         control=ControlState(
             building=ControlMode.AUTO, floors={"f1": FloorControl.MANUAL}
         ),
-        applied_mode=_LESSON,
+        schedule_mode=_LESSON,  # расписание уехало за время ручного этажа
+        applied_mode=_OFF,  # устаревший применённый режим
     )
     decision = decide(
         state,
         ControlModeChanged(floor_id="f1", floor_control=FloorControl.BY_BUILDING),
         now=1.0,
     )
+    assert decision.state.applied_mode is _LESSON  # догнал расписание
     assert decision.plan is not None
-    assert decision.gates["f1"] is True  # датчики снова разрешены (lesson)
+    assert all(c.action == _ACTION for c in decision.plan.commands)  # действия lesson
+    assert decision.gates["f1"] is True  # датчики разрешены (lesson)
     assert decision.state.control.floors["f1"] is FloorControl.BY_BUILDING
+    assert isinstance(decision.timer_op, NoTimerOp)
+
+
+def test_building_return_to_auto_applies_current_schedule() -> None:
+    """Возврат здания в авто применяет текущий режим расписания сразу."""
+
+    state = _state(
+        control=ControlState(building=ControlMode.MANUAL, floors={}),
+        schedule_mode=_LESSON,  # расписание уехало за время ручного
+        applied_mode=_OFF,  # устаревший применённый режим
+    )
+    decision = decide(
+        state, ControlModeChanged(building=ControlMode.AUTO), now=1.0
+    )
+    assert decision.state.applied_mode is _LESSON  # догнал расписание
+    assert decision.plan is not None
+    assert all(c.action == _ACTION for c in decision.plan.commands)
+    assert all(decision.gates.values())  # гейты открыты (lesson sensors_allowed)
+    assert isinstance(decision.timer_op, NoTimerOp)
 
 
 def test_floor_manual_does_not_affect_other_floors() -> None:
@@ -309,9 +335,13 @@ def test_gate_closed_when_mode_unconfigured() -> None:
         actions_by_area={},
         fallback_mode=_OFF,
     )
-    # applied_mode WINDOW не в modes → settings None → gate False
-    state = _state(config=config, applied_mode=ScheduleMode.WINDOW)
+    # Расписание = WINDOW (нет в modes). Возврат в авто применяет schedule_mode
+    # WINDOW → settings None → gate False.
+    state = _state(
+        config=config, schedule_mode=ScheduleMode.WINDOW, applied_mode=_OFF
+    )
     decision = decide(state, ControlModeChanged(building=ControlMode.AUTO), now=1.0)
+    assert decision.state.applied_mode is ScheduleMode.WINDOW
     assert decision.gates["f1"] is False
 
 

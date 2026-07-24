@@ -130,8 +130,10 @@ def _on_control(state: OrchestratorState, inp: ControlModeChanged) -> Decision:
     if going_manual:
         return Decision(new_state, None, NoTimerOp(), (), _gates(new_state))
 
-    # Возврат в авто — применить актуальный режим немедленно, без задержки (§4.1).
-    mode = state.applied_mode if state.applied_mode is not None else state.schedule_mode
+    # Возврат в авто — догнать ТЕКУЩЕЕ расписание немедленно, без задержки (§4.1):
+    # «Авто» означает следовать расписанию. Если за время ручного режим уехал,
+    # применяем schedule_mode, а не устаревший applied_mode.
+    mode = state.schedule_mode
     applied = replace(new_state, applied_mode=mode)
     return Decision(
         applied, _build_plan(applied, mode), NoTimerOp(), (), _gates(applied)

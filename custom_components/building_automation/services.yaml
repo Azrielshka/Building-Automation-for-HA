@@ -1,0 +1,41 @@
+set_control_mode:
+  name: Установить режим управления
+  description: >-
+    Перевести здание или отдельный этаж в Автоматический (по расписанию) или
+    Ручной режим.
+  fields:
+    target:
+      name: Цель
+      description: Что переключаем — здание или этаж.
+      required: true
+      selector:
+        select:
+          options:
+            - value: building
+              label: Здание
+            - value: floor
+              label: Этаж
+    mode:
+      name: Режим
+      description: Автоматический (следует расписанию) или Ручной (стоп).
+      required: true
+      selector:
+        select:
+          options:
+            - value: auto
+              label: Авто
+            - value: manual
+              label: Ручной
+    floor_id:
+      name: Этаж (floor_id)
+      description: Идентификатор этажа. Обязателен, когда цель — этаж.
+      required: false
+      example: pervyj_etazh
+      selector:
+        text:
+
+reapply:
+  name: Применить повторно
+  description: >-
+    Пересобрать снимки топологии и расписания и применить каскад заново
+    (например, после правки меток или профилей).
