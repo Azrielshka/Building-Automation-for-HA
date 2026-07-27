@@ -1,6 +1,6 @@
 # SPEC — интеграция «Building Automation» (Оркестратор здания)
 
-Спецификация разработки. Версия 1.1, 2026-07-23.
+Спецификация разработки. Версия 1.2, 2026-07-27.
 
 ## Индекс
 
@@ -13,7 +13,7 @@
 | [2.3](#23-адаптеры-оболочка) | Адаптеры | швы к Home Assistant |
 | [2.4](#24-направление-зависимостей) | Зависимости | правило и его проверка |
 | [2.5](#25-раскладка-файлов) | Файлы | структура пакета |
-| [2.6](#26-внешние-контракты-этапы-78) | Контракты | команды WS, события, сервисы, сущности |
+| [2.6](#26-внешние-контракты-этапы-79) | Контракты | команды WS, события, сервисы, сущности |
 | [3](#3-модель-данных) | Модель данных | типы ядра и схема хранилища |
 | [4](#4-алгоритмы-и-сложность) | Алгоритмы | Big-O, выбор структур данных |
 | [5](#5-сценарии-тестов-bdd) | Тесты BDD | сценарии по модулям, включая негативные |
@@ -342,7 +342,7 @@ tests/
 > `entities/`; Home Assistant так их не находит — loader ищет платформу по пути
 > `custom_components/<домен>/<платформа>.py`. Исправлено на этапе 1b.
 
-### 2.6. Внешние контракты (этапы 7–8)
+### 2.6. Внешние контракты (этапы 7–9)
 
 Всё, на что опираются панель (этап 9) и смежные проекты. Имена — в `const.py`.
 
@@ -350,12 +350,13 @@ tests/
 
 | Команда | Права | Вход | Результат |
 |---|---|---|---|
-| `get_state` | любой | — | мониторинг: `building_control`, `schedule_mode`, `applied_mode`, `source_available`, `pending`, `floors[]` (`control`, `gate`, `aggregate_area_id`), `rooms[]` (`room_type`, `opt_out`, `status`), `last_plan` (`commands[]` с `level`, `skipped[]`, `collapse`), `orphaned` |
-| `get_config` | любой | — | `{config}` — вывод `dump_config` |
+| `get_state` | любой | — | мониторинг: `building_control`, `schedule_source[]`, `schedule_mode`, `applied_mode`, `source_available`, `pending`, `floors[]` (`control`, `gate`, `aggregate_area_id`), `rooms[]` (`room_type`, `opt_out`, `status`), `last_plan` (`commands[]` с `level`, `skipped[]`, `collapse`, `previous_mode`, `applied_mode`), `orphaned` |
+| `get_config` | любой | — | `{config}` — вывод `dump_config` (вкл. `opted_out_areas`) |
 | `set_control_mode` | любой | `target` (`building`/`floor`), `mode` (`auto`/`manual`), `floor_id?` | `{ok}` |
 | `set_mode_settings` | **admin** | `mode`, `delay_seconds`, `sensors_allowed`, `sensors_allowed_by_floor?` | `{config}` |
 | `set_actions` | **admin** | `scope` (`object`/`floor`/`room_type`/`area`), `key?`, `mode`, `actions[]` | `{config}` |
 | `clear_actions` | **admin** | `scope`, `key?`, `mode` | `{config}` |
+| `set_opt_out` | **admin** | `area_id`, `opted` (bool) | `{config}` |
 
 **Точечность и идемпотентность (§11.1 ТЗ).** Каждая мутация трогает ровно один
 узел (`scope`+`key`+`mode`); read-modify-write сериализован отдельным локом
@@ -367,9 +368,17 @@ tests/
 > на этом уровне (обрывает наследование), а вернуть наследование можно только
 > удалением узла. Поэтому это две разные команды, а не одна.
 
+> **opt-out — политика Оркестратора в `.storage`, не метка реестра** (решение
+> Q3=C). Множество `opted_out_areas` правится командой `set_opt_out`; координатор
+> накладывает его на снимок топологии (`topology.apply_opt_out`), помещение
+> пропускается каскадом с причиной `OPT_OUT`. Генератору метка `ba_optout` не
+> нужна.
+
 **Валидация.** Результат мутации прогоняется через `dump_config`→`load_config`,
 то есть белый список (`light`/`switch`, `turn_on`/`turn_off`) действует и здесь;
 ошибка возвращается кодом `invalid_config` с местом (`actions.object.off[0].domain`).
+Поле `data` действия — произвольный dict (напр. `brightness_pct` для
+`light`+`turn_on`), проверяется только тип.
 
 **События на шине** (`publisher.py`): `building_automation_mode_changed`
 (`new_mode`, `previous_mode`, `source`), `building_automation_mode_warning`
@@ -439,6 +448,7 @@ class Config:
     actions_by_room_type: Mapping[tuple[RoomType, ScheduleMode], ActionSet]
     actions_by_area: Mapping[tuple[AreaId, ScheduleMode], ActionSet]
     fallback_mode: ScheduleMode
+    opted_out_areas: frozenset[AreaId]  # исключённые из управления (Q3=C)
 ```
 
 Прочие типы данных: `Floor`, `Room` (§2.2.2), `ScheduleEvent`, `ScheduleResolution`
@@ -503,7 +513,8 @@ class Decision:
       "floor":     { "<floor_id>": { "<mode>": [ ... ] } },
       "room_type": { "korridor":   { "<mode>": [ ... ] } },
       "area":      { "<area_id>":  { "<mode>": [ ... ] } }
-    }
+    },
+    "opted_out_areas": [ "<area_id>", ... ]   // opt-out политика (Q3=C)
   }
 }
 ```
@@ -875,7 +886,7 @@ score ловит тесты, которые исполняют код, но ни
 |---|---|---|---|
 | 1 | HA-обвязка не покрыта тестами и не проверяется типами (пакет `homeassistant` не установлен) | ошибки использования HA-API находятся только на объекте | принято; смягчено §2.1 и ручным чек-листом. **Подтверждено практикой:** полевой тест этапа 7 поймал два дефекта, невидимых для юнит-тестов ядра — колбэк таймера в executor-потоке (thread-safety HA) и семантику возврата в Авто |
 | 2 | ~~Группа тех.помещений этажа~~ | — | **закрыт** 2026-07-22: технические помещения выведены из управления по расписанию, см. §7.8 |
-| 3 | ~~Имена меток `ba_floor_area`, `ba_type_*`~~ | — | **закрыт** 2026-07-23: метки созданы генератором и проверены на песочнице (этап 2). Остаётся `ba_optout` — ставится вручную, ещё не создан |
+| 3 | ~~Имена меток `ba_floor_area`, `ba_type_*`, `ba_optout`~~ | — | **закрыт**: `ba_floor_area`/`ba_type_*` созданы генератором и проверены (этап 2); `ba_optout` **упразднён** — opt-out переехал в `.storage` Оркестратора (решение Q3=C, 2026-07-27), метка больше не нужна |
 | 4 | Поведение DALI-интеграции с `suggested_area` неизвестно | лампы могут приезжать в Area при расширении объекта и ломать инвариант | на новых объектах не критично; проверить на объекте |
 | 5 | ~~Blueprint'ы с гейтом~~ | — | **закрыт** 2026-07-23: гейт реализован во всех 6 blueprint `zm_*` на песочнице, форма верная (`condition: template`, fail-open) |
 | 6 | Система датчиков на объекте не работает без JSON Zone Manager | проверить гейт в поле будет не на чем | зависимость вне обоих проектов |
@@ -883,6 +894,20 @@ score ловит тесты, которые исполняют код, но ни
 ---
 
 ## 9. Changelog
+
+### 1.2 — 2026-07-27 (по итогам этапа 9, Q3=C и приёмки)
+
+- **Q3=C — opt-out переехал из метки `ba_optout` в `.storage`**: политика
+  Оркестратора, не метка реестра. Добавлены `Config.opted_out_areas`, чистая
+  `topology.apply_opt_out`, WS-команда `set_opt_out`. §2.6, §8 риск 3 обновлены;
+  метка `ba_optout` упразднена.
+- **§2.6 дополнен под этап 9**: команда `set_opt_out`; в `get_state` —
+  `schedule_source[]` и переход режима (`previous_mode`/`applied_mode`) в
+  `last_plan`; `data` действия — произвольный dict (напр. `brightness_pct`).
+- **Приёмка (этап 10)** пройдена по всему удалённо проверяемому: `hassfest`
+  зелёный, покрытие ветвей `domain/` 100 %, mutation 92.3 %, fail-open гейта,
+  права (неадмин). Протокол — `docs/acceptance-protocol.md`. Тег `0.5.0`;
+  остаётся полевое подтверждение видимого света на объекте (→ `v1.0.0`).
 
 ### 1.1 — 2026-07-23 (по итогам этапов 7–8 и полевого теста)
 
