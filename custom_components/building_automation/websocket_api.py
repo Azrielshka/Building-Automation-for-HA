@@ -229,6 +229,7 @@ def ws_get_state(
     }
 
     plan = coordinator.last_plan
+    transition = coordinator.last_transition
     last_plan: dict[str, Any] | None = None
     if plan is not None:
         commands = [
@@ -249,6 +250,16 @@ def ws_get_state(
                 "floor": sum(1 for c in commands if c["level"] == "floor"),
                 "area": sum(1 for c in commands if c["level"] == "area"),
             },
+            "previous_mode": (
+                transition[0].value
+                if transition is not None and transition[0] is not None
+                else None
+            ),
+            "applied_mode": (
+                transition[1].value
+                if transition is not None and transition[1] is not None
+                else None
+            ),
         }
 
     connection.send_result(

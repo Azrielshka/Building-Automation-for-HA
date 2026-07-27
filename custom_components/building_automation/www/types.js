@@ -94,6 +94,8 @@
  * @property {CommandInfo[]} commands
  * @property {SkipInfo[]} skipped
  * @property {CollapseInfo} collapse
+ * @property {string | null} previous_mode  режим до этого каскада
+ * @property {string | null} applied_mode   режим, применённый этим каскадом
  */
 
 /**

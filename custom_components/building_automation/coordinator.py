@@ -108,6 +108,10 @@ class BuildingCoordinator(DataUpdateCoordinator[OrchestratorState]):
         self._topology_dirty = False
         self.gates: dict[FloorId, bool] = {}
         self.last_plan: CascadePlan | None = None
+        # Переход режимов, породивший last_plan: (предыдущий, применённый).
+        self.last_transition: tuple[ScheduleMode | None, ScheduleMode | None] | None = (
+            None
+        )
 
     # --- Снимки ---------------------------------------------------------
 
@@ -241,11 +245,13 @@ class BuildingCoordinator(DataUpdateCoordinator[OrchestratorState]):
             if self._topology_dirty:
                 state = replace(state, topology=build_topology_snapshot(self.hass))
                 self._topology_dirty = False
+            previous_applied = state.applied_mode
             now = self.hass.loop.time()
             decision = decide(state, inp, now)
 
             if decision.plan is not None:
                 self.last_plan = decision.plan
+                self.last_transition = (previous_applied, decision.state.applied_mode)
                 await execute_plan(self.hass, decision.plan)
             self._timer.apply(self.hass, decision.timer_op, now, self._on_timer_fire)
             publish_events(self.hass, decision.events)

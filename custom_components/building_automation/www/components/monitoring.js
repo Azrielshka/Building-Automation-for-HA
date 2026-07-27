@@ -275,9 +275,19 @@ export class BuildingAutomationMonitoring extends LitElement {
         </div>
       `;
     }
+    const prevMode = plan.previous_mode;
+    const toMode = plan.applied_mode;
+    const transition =
+      prevMode !== null && prevMode !== toMode
+        ? html`${modeLabel(prevMode)} → ${modeLabel(toMode)}`
+        : modeLabel(toMode);
     return html`
       <div class="card">
         <div class="card-title">Последний каскад</div>
+        <div class="row">
+          <span>Переход режима</span>
+          <span><b>${transition}</b></span>
+        </div>
         <div class="row">
           <span>Схлопывание</span>
           <span>
