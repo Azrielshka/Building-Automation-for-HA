@@ -13,6 +13,7 @@
  */
 
 import { LitElement, html, css, nothing } from "../vendor/lit-3.3.3.js";
+import { sharedStyles } from "../shared-styles.js";
 import { setControlMode, reapply } from "../api.js";
 
 /** @type {Record<string, string>} */
@@ -45,6 +46,14 @@ function modeLabel(mode) {
     return "—";
   }
   return MODE_LABELS[mode] ?? mode;
+}
+
+/**
+ * Режим как нейтральная пилюля (E5: единообразно, без «ёлочки»).
+ * @param {string | null} mode
+ */
+function modeBadge(mode) {
+  return html`<span class="badge mode">${modeLabel(mode)}</span>`;
 }
 
 export class BuildingAutomationMonitoring extends LitElement {
@@ -116,8 +125,8 @@ export class BuildingAutomationMonitoring extends LitElement {
 
   /**
    * Цвет индикатора источника: серый — недоступен/нет; красный — «off»;
-   * зелёный — доступен (включён или иное валидное состояние). Читаем живое
-   * состояние из hass (корень держит источник в watched → dot обновляется).
+   * зелёный — доступен. Читаем живое состояние из hass (корень держит источник
+   * в watched → dot обновляется).
    * @param {string} entityId
    * @returns {"green" | "red" | "grey"}
    */
@@ -144,7 +153,7 @@ export class BuildingAutomationMonitoring extends LitElement {
         <div class="row">
           <span>Режим управления</span>
           <span class="controls">
-            <span class="badge ${manual ? "warn" : "ok"}">
+            <span class="badge ${manual ? "attention" : "ok"}">
               ${manual ? "Ручной" : "Авто"}
             </span>
             <button
@@ -156,12 +165,12 @@ export class BuildingAutomationMonitoring extends LitElement {
         </div>
         <div class="row">
           <span>Режим расписания</span>
-          <span>
-            ${modeLabel(s.schedule_mode)}
+          <span class="controls">
+            ${modeBadge(s.schedule_mode)}
             ${
               s.source_available
                 ? nothing
-                : html`<span class="badge warn">источник недоступен</span>`
+                : html`<span class="badge attention">источник недоступен</span>`
             }
           </span>
         </div>
@@ -177,6 +186,7 @@ export class BuildingAutomationMonitoring extends LitElement {
                         <span
                           class="dot ${this._sourceColor(id)}"
                           title=${this._sourceTitle(id)}
+                          aria-label=${this._sourceTitle(id)}
                         ></span>
                         <code>${id}</code>
                       </span>
@@ -186,14 +196,14 @@ export class BuildingAutomationMonitoring extends LitElement {
           </span>
         </div>
         <div class="row">
-          <span>Применённый режим</span><span>${modeLabel(s.applied_mode)}</span>
+          <span>Применённый режим</span><span>${modeBadge(s.applied_mode)}</span>
         </div>
         <div class="row">
           <span>Отложенный переход</span>
           <span>
             ${
               s.pending
-                ? html`→ ${modeLabel(s.pending.target_mode)}
+                ? html`→ ${modeBadge(s.pending.target_mode)}
                     <span class="badge">ожидает применения</span>`
                 : "нет"
             }
@@ -214,49 +224,55 @@ export class BuildingAutomationMonitoring extends LitElement {
     return html`
       <div class="card">
         <div class="card-title">Этажи</div>
-        <table>
-          <thead>
-            <tr>
-              <th>Этаж</th>
-              <th>Управление</th>
-              <th>Датчики</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            ${floors.map((f) => {
-              const manual = f.control === "manual";
-              return html`
-                <tr>
-                  <td>${f.floor_id}</td>
-                  <td>
-                    <span class="badge ${manual ? "warn" : "ok"}">
-                      ${manual ? "Ручной" : "Авто"}
-                    </span>
-                    ${
-                      buildingManual
-                        ? html`<span class="muted-note">· здание: Ручной</span>`
-                        : nothing
-                    }
-                  </td>
-                  <td>
-                    <span class="badge ${f.gate ? "ok" : "muted"}">
-                      ${f.gate ? "включены" : "выключены"}
-                    </span>
-                  </td>
-                  <td>
-                    <button
-                      @click=${() =>
-                        this._setMode("floor", manual ? "auto" : "manual", f.floor_id)}
-                    >
-                      ${manual ? "В Авто" : "В Ручной"}
-                    </button>
-                  </td>
-                </tr>
-              `;
-            })}
-          </tbody>
-        </table>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Этаж</th>
+                <th>Управление</th>
+                <th>Датчики</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              ${floors.map((f) => {
+                const manual = f.control === "manual";
+                return html`
+                  <tr>
+                    <td>${f.floor_id}</td>
+                    <td>
+                      <span class="badge ${manual ? "attention" : "ok"}">
+                        ${manual ? "Ручной" : "Авто"}
+                      </span>
+                      ${
+                        buildingManual
+                          ? html`<span class="muted-note">· здание: Ручной</span>`
+                          : nothing
+                      }
+                    </td>
+                    <td>
+                      <span class="badge ${f.gate ? "ok" : "off"}">
+                        ${f.gate ? "включены" : "выключены"}
+                      </span>
+                    </td>
+                    <td>
+                      <button
+                        @click=${() =>
+                          this._setMode(
+                            "floor",
+                            manual ? "auto" : "manual",
+                            f.floor_id,
+                          )}
+                      >
+                        ${manual ? "В Авто" : "В Ручной"}
+                      </button>
+                    </td>
+                  </tr>
+                `;
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     `;
   }
@@ -271,45 +287,49 @@ export class BuildingAutomationMonitoring extends LitElement {
     return html`
       <div class="card">
         <div class="card-title">Помещения (${rooms.length})</div>
-        <table>
-          <thead>
-            <tr>
-              <th>Area</th>
-              <th>Этаж</th>
-              <th>Тип</th>
-              <th>Датчики</th>
-              <th>Инвариант</th>
-              <th>opt-out</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rooms.map((r) => {
-              const gate = gateByFloor.get(r.floor_id);
-              return html`
-                <tr>
-                  <td>${r.area_id}</td>
-                  <td>${r.floor_id}</td>
-                  <td>${r.room_type ?? "—"}</td>
-                  <td>
-                    ${
-                      gate === undefined
-                        ? "—"
-                        : html`<span class="badge ${gate ? "ok" : "muted"}">
-                            ${gate ? "включены" : "выключены"}
-                          </span>`
-                    }
-                  </td>
-                  <td>
-                    <span class="badge ${r.status === "ok" ? "ok" : "error"}">
-                      ${STATUS_LABELS[r.status] ?? r.status}
-                    </span>
-                  </td>
-                  <td>${r.opt_out ? "да" : "—"}</td>
-                </tr>
-              `;
-            })}
-          </tbody>
-        </table>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Area</th>
+                <th>Этаж</th>
+                <th>Тип</th>
+                <th>Датчики</th>
+                <th>Инвариант</th>
+                <th>opt-out</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rooms.map((r) => {
+                const gate = gateByFloor.get(r.floor_id);
+                return html`
+                  <tr>
+                    <td>${r.area_id}</td>
+                    <td>${r.floor_id}</td>
+                    <td>${r.room_type ?? "—"}</td>
+                    <td>
+                      ${
+                        gate === undefined
+                          ? "—"
+                          : html`<span class="badge ${gate ? "ok" : "off"}">
+                              ${gate ? "включены" : "выключены"}
+                            </span>`
+                      }
+                    </td>
+                    <td>
+                      <span class="badge ${r.status === "ok" ? "ok" : "alert"}">
+                        ${STATUS_LABELS[r.status] ?? r.status}
+                      </span>
+                    </td>
+                    <td>
+                      ${r.opt_out ? html`<span class="badge accent">да</span>` : "—"}
+                    </td>
+                  </tr>
+                `;
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     `;
   }
@@ -329,15 +349,12 @@ export class BuildingAutomationMonitoring extends LitElement {
     const toMode = plan.applied_mode;
     const transition =
       prevMode !== null && prevMode !== toMode
-        ? html`${modeLabel(prevMode)} → ${modeLabel(toMode)}`
-        : modeLabel(toMode);
+        ? html`${modeBadge(prevMode)} → ${modeBadge(toMode)}`
+        : modeBadge(toMode);
     return html`
       <div class="card">
         <div class="card-title">Последний каскад</div>
-        <div class="row">
-          <span>Переход режима</span>
-          <span><b>${transition}</b></span>
-        </div>
+        <div class="row"><span>Переход режима</span><span>${transition}</span></div>
         <div class="row">
           <span>Схлопывание</span>
           <span>
@@ -345,26 +362,28 @@ export class BuildingAutomationMonitoring extends LitElement {
             <b>${plan.collapse.area}</b>
           </span>
         </div>
-        <table>
-          <thead>
-            <tr>
-              <th>Цель</th>
-              <th>Действие</th>
-              <th>Уровень</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${plan.commands.map(
-              (c) => html`
-                <tr>
-                  <td>${c.target_area_id}</td>
-                  <td>${c.domain}.${c.service}</td>
-                  <td>${c.level === "floor" ? "этаж" : "помещение"}</td>
-                </tr>
-              `,
-            )}
-          </tbody>
-        </table>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Цель</th>
+                <th>Действие</th>
+                <th>Уровень</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${plan.commands.map(
+                (c) => html`
+                  <tr>
+                    <td>${c.target_area_id}</td>
+                    <td>${c.domain}.${c.service}</td>
+                    <td>${c.level === "floor" ? "этаж" : "помещение"}</td>
+                  </tr>
+                `,
+              )}
+            </tbody>
+          </table>
+        </div>
         ${
           plan.skipped.length
             ? html`
@@ -414,151 +433,70 @@ export class BuildingAutomationMonitoring extends LitElement {
   }
 
   /** @override */
-  static styles = css`
-    :host {
-      display: block;
-    }
-    .card {
-      background: var(--card-background-color, var(--ha-card-background, #fff));
-      border-radius: 12px;
-      padding: 16px;
-      margin-bottom: 16px;
-      box-shadow: var(--ha-card-box-shadow, 0 2px 4px rgba(0, 0, 0, 0.1));
-    }
-    .card-title {
-      font-size: 1.1rem;
-      font-weight: 500;
-      margin-bottom: 12px;
-    }
-    .card-subtitle {
-      font-weight: 500;
-      margin: 12px 0 4px;
-    }
-    .row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      padding: 6px 0;
-      border-bottom: 1px solid var(--divider-color, #eee);
-    }
-    .row:last-child {
-      border-bottom: none;
-    }
-    .controls {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.95rem;
-    }
-    th,
-    td {
-      text-align: left;
-      padding: 6px 8px;
-      border-bottom: 1px solid var(--divider-color, #eee);
-    }
-    th {
-      color: var(--secondary-text-color);
-      font-weight: 500;
-    }
-    button {
-      background: var(--primary-color);
-      color: var(--text-primary-color, #fff);
-      border: none;
-      border-radius: 8px;
-      padding: 6px 12px;
-      cursor: pointer;
-      font-size: 0.9rem;
-    }
-    button:hover {
-      opacity: 0.9;
-    }
-    .badge {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 12px;
-      font-size: 0.85rem;
-      background: var(--divider-color, #eee);
-      color: var(--primary-text-color);
-    }
-    .badge.ok {
-      background: var(--success-color, #4caf50);
-      color: #fff;
-    }
-    .badge.warn {
-      background: var(--warning-color, #ff9800);
-      color: #fff;
-    }
-    .badge.error {
-      background: var(--error-color, #f44336);
-      color: #fff;
-    }
-    .badge.muted {
-      background: var(--divider-color, #eee);
-      color: var(--secondary-text-color);
-    }
-    .muted-text {
-      color: var(--secondary-text-color);
-      font-size: 0.9rem;
-    }
-    .muted-note {
-      color: var(--secondary-text-color);
-      font-size: 0.85rem;
-      margin-left: 4px;
-    }
-    .sources {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      align-items: flex-end;
-    }
-    .source {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .source code {
-      font-size: 0.85rem;
-      color: var(--secondary-text-color);
-    }
-    .dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      flex: 0 0 auto;
-      animation: ba-blink 1.4s ease-in-out infinite;
-    }
-    .dot.green {
-      background: var(--success-color, #4caf50);
-    }
-    .dot.red {
-      background: var(--error-color, #f44336);
-    }
-    .dot.grey {
-      background: var(--disabled-text-color, #9e9e9e);
-    }
-    @keyframes ba-blink {
-      0%,
-      100% {
-        opacity: 1;
+  static styles = [
+    sharedStyles,
+    css`
+      :host {
+        display: block;
       }
-      50% {
-        opacity: 0.25;
+      .controls {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
       }
-    }
-    .banner.error {
-      color: var(--error-color);
-      padding: 8px 0;
-    }
-    ul {
-      margin: 4px 0;
-      padding-left: 20px;
-    }
-  `;
+      .sources {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        align-items: flex-end;
+      }
+      .source {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .source code {
+        font-size: 0.85rem;
+        color: var(--secondary-text-color);
+      }
+      .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        flex: 0 0 auto;
+        animation: ba-blink 1.4s ease-in-out infinite;
+      }
+      .dot.green {
+        background: var(--success-color, #4caf50);
+      }
+      .dot.red {
+        background: var(--error-color, #f44336);
+      }
+      .dot.grey {
+        background: var(--disabled-text-color, #9e9e9e);
+      }
+      @keyframes ba-blink {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.25;
+        }
+      }
+      .muted-note {
+        color: var(--secondary-text-color);
+        font-size: 0.85rem;
+        margin-left: 4px;
+      }
+      ul {
+        margin: 4px 0;
+        padding-left: 20px;
+      }
+    `,
+  ];
 }
 
 if (!customElements.get("building-automation-monitoring")) {

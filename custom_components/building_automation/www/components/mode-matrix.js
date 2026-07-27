@@ -19,6 +19,7 @@
  */
 
 import { LitElement, html, css, nothing } from "../vendor/lit-3.3.3.js";
+import { sharedStyles } from "../shared-styles.js";
 import { setActions, clearActions, setModeSettings, setOptOut } from "../api.js";
 
 const MODES = ["lesson", "break", "window", "off"];
@@ -56,6 +57,42 @@ function brightnessOf(action) {
 }
 
 /**
+ * Глубокая копия узла {mode: Action[]} — черновик не мутирует конфиг.
+ * @param {Record<string, ActionSpec[]>} node
+ * @returns {Record<string, ActionSpec[]>}
+ */
+function cloneNode(node) {
+  /** @type {Record<string, ActionSpec[]>} */
+  const copy = {};
+  for (const [mode, actions] of Object.entries(node)) {
+    copy[mode] = actions.map((a) => ({
+      domain: a.domain,
+      service: a.service,
+      data: { ...a.data },
+    }));
+  }
+  return copy;
+}
+
+/**
+ * Нормализовать действие: яркость имеет смысл только у light+turn_on;
+ * при смене домена/сервиса лишний brightness_pct убираем.
+ * @param {ActionSpec} action
+ * @returns {ActionSpec}
+ */
+function normalizeAction(action) {
+  if (action.domain === "light" && action.service === "turn_on") {
+    return action;
+  }
+  if ("brightness_pct" in action.data) {
+    const data = { ...action.data };
+    delete data.brightness_pct;
+    return { ...action, data };
+  }
+  return action;
+}
+
+/**
  * Узел действий {mode: Action[]} для выбранного scope+key из конфига.
  * @param {BuildingConfig} config
  * @param {Scope} scope
@@ -80,6 +117,7 @@ export class BuildingAutomationModeMatrix extends LitElement {
     _scope: { state: true },
     _key: { state: true },
     _error: { state: true },
+    _draftNode: { state: true },
   };
 
   constructor() {
@@ -98,6 +136,25 @@ export class BuildingAutomationModeMatrix extends LitElement {
     this._key = null;
     /** @type {string} */
     this._error = "";
+    // Реактивный черновик действий выбранного узла {mode: Action[]}. Правки
+    // domain/service/яркости идут сюда → перерисовка корректно показывает поле
+    // яркости; «Сохранить» пишет черновик, «Наследовать» удаляет узел.
+    /** @type {Record<string, ActionSpec[]>} */
+    this._draftNode = {};
+  }
+
+  /**
+   * @override
+   * @param {import("../vendor/lit-3.3.3.js").PropertyValues} changed
+   */
+  willUpdate(changed) {
+    // Сбросить черновик из сохранённого конфига при смене узла или конфига
+    // (в т.ч. после успешной мутации: parent присылает свежий config).
+    if (changed.has("config") || changed.has("_scope") || changed.has("_key")) {
+      this._draftNode = this.config
+        ? cloneNode(nodeOf(this.config, this._scope, this._key))
+        : {};
+    }
   }
 
   /** @returns {string[]} доступные ключи для текущего scope */
@@ -155,15 +212,13 @@ export class BuildingAutomationModeMatrix extends LitElement {
     }
   }
 
-  /**
-   * @param {string} mode
-   * @param {ActionSpec[]} actions
-   */
-  async _saveActions(mode, actions) {
+  /** @param {string} mode */
+  async _saveActions(mode) {
     if (!this.hass) {
       return;
     }
     const hass = this.hass;
+    const actions = this._draftNode[mode] ?? [];
     await this._run(() => setActions(hass, this._scope, this._key, mode, actions));
   }
 
@@ -236,19 +291,21 @@ export class BuildingAutomationModeMatrix extends LitElement {
     return html`
       <div class="card">
         <div class="card-title">Настройки режимов</div>
-        <table>
-          <thead>
-            <tr>
-              <th>Режим</th>
-              <th>Задержка, c</th>
-              <th>Датчики (по зданию)</th>
-              ${floors.map((f) => html`<th>эт. ${f.floor_id}</th>`)}
-            </tr>
-          </thead>
-          <tbody>
-            ${MODES.map((mode) => this._renderModeRow(config, mode, floors))}
-          </tbody>
-        </table>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Режим</th>
+                <th>Задержка, c</th>
+                <th>Датчики (по зданию)</th>
+                ${floors.map((f) => html`<th>эт. ${f.floor_id}</th>`)}
+              </tr>
+            </thead>
+            <tbody>
+              ${MODES.map((mode) => this._renderModeRow(config, mode, floors))}
+            </tbody>
+          </table>
+        </div>
         <div class="hint">
           Датчики на этаже: «наследовать» — по зданию; иначе явное вкл/выкл.
         </div>
@@ -341,7 +398,6 @@ export class BuildingAutomationModeMatrix extends LitElement {
     if (!config) {
       return nothing;
     }
-    const node = nodeOf(config, this._scope, this._key);
     const options = this._keyOptions();
     return html`
       <div class="card">
@@ -388,19 +444,21 @@ export class BuildingAutomationModeMatrix extends LitElement {
             ? this._renderEffective(config, this._key)
             : nothing
         }
-        <table>
-          <thead>
-            <tr>
-              <th>Режим</th>
-              <th>Состояние</th>
-              <th>Действия</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            ${MODES.map((mode) => this._renderActionRow(node, mode))}
-          </tbody>
-        </table>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Режим</th>
+                <th>Состояние</th>
+                <th>Действия</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              ${MODES.map((mode) => this._renderActionRow(mode))}
+            </tbody>
+          </table>
+        </div>
       </div>
     `;
   }
@@ -430,7 +488,7 @@ export class BuildingAutomationModeMatrix extends LitElement {
         </label>
         ${
           opted
-            ? html`<span class="chip set">исключено — каскад пропускает</span>`
+            ? html`<span class="chip accent">исключено — каскад пропускает</span>`
             : nothing
         }
       </div>
@@ -475,21 +533,18 @@ export class BuildingAutomationModeMatrix extends LitElement {
     `;
   }
 
-  /**
-   * @param {Record<string, ActionSpec[]>} node
-   * @param {string} mode
-   */
-  _renderActionRow(node, mode) {
-    const explicit = mode in node;
-    const actions = node[mode] ?? [];
+  /** @param {string} mode */
+  _renderActionRow(mode) {
+    const inDraft = mode in this._draftNode;
+    const actions = this._draftNode[mode] ?? [];
     const ro = !this.isAdmin;
     return html`
       <tr>
         <td>${modeLabel(mode)}</td>
         <td>
           ${
-            explicit
-              ? html`<span class="chip set">задано (${actions.length})</span>`
+            inDraft
+              ? html`<span class="chip accent">задано (${actions.length})</span>`
               : html`<span class="chip">наследует</span>`
           }
         </td>
@@ -499,15 +554,10 @@ export class BuildingAutomationModeMatrix extends LitElement {
             ro
               ? nothing
               : html`
-                  <button
-                    @click=${() =>
-                      this._saveActions(mode, this._draftFor(mode, actions))}
-                  >
-                    Сохранить
-                  </button>
+                  <button @click=${() => this._saveActions(mode)}>Сохранить</button>
                   <button
                     class="secondary"
-                    ?disabled=${!explicit}
+                    ?disabled=${!inDraft}
                     @click=${() => this._inheritActions(mode)}
                   >
                     Наследовать
@@ -520,80 +570,42 @@ export class BuildingAutomationModeMatrix extends LitElement {
   }
 
   /**
-   * Черновик действий режима: правки живут в DOM до «Сохранить», читаем из полей.
-   * @param {string} mode
-   * @param {ActionSpec[]} fallback
-   * @returns {ActionSpec[]}
-   */
-  _draftFor(mode, fallback) {
-    const root = this.renderRoot;
-    const rows = root.querySelectorAll(`[data-mode="${mode}"] .action-row`);
-    if (rows.length === 0) {
-      return [];
-    }
-    /** @type {ActionSpec[]} */
-    const result = [];
-    rows.forEach((row) => {
-      const domain = /** @type {HTMLSelectElement | null} */ (
-        row.querySelector(".action-domain")
-      );
-      const service = /** @type {HTMLSelectElement | null} */ (
-        row.querySelector(".action-service")
-      );
-      if (domain && service) {
-        result.push({
-          domain: domain.value,
-          service: service.value,
-          data: this._readData(row, domain.value, service.value),
-        });
-      }
-    });
-    return result.length > 0 || rows.length > 0 ? result : fallback;
-  }
-
-  /**
-   * Прочитать data действия из строки. Пока поддержана яркость для light+turn_on.
-   * @param {Element} row
-   * @param {string} domain
-   * @param {string} service
-   * @returns {Record<string, unknown>}
-   */
-  _readData(row, domain, service) {
-    /** @type {Record<string, unknown>} */
-    const data = {};
-    if (domain === "light" && service === "turn_on") {
-      const input = /** @type {HTMLInputElement | null} */ (
-        row.querySelector(".action-brightness")
-      );
-      if (input && input.value !== "") {
-        const pct = Number(input.value);
-        if (Number.isFinite(pct)) {
-          data.brightness_pct = pct;
-        }
-      }
-    }
-    return data;
-  }
-
-  /**
    * @param {string} mode
    * @param {ActionSpec[]} actions
    * @param {boolean} ro
    */
   _renderActionList(mode, actions, ro) {
     return html`
-      <div data-mode=${mode} class="action-list">
+      <div class="action-list">
         ${actions.map(
           (action, index) => html`
             <div class="action-row">
-              <select class="action-domain" ?disabled=${ro}>
+              <select
+                class="action-domain"
+                ?disabled=${ro}
+                @change=${(/** @type {Event} */ e) =>
+                  this._setDomain(
+                    mode,
+                    index,
+                    /** @type {HTMLSelectElement} */ (e.target).value,
+                  )}
+              >
                 ${DOMAINS.map(
                   (d) => html`
                     <option value=${d} ?selected=${action.domain === d}>${d}</option>
                   `,
                 )}
               </select>
-              <select class="action-service" ?disabled=${ro}>
+              <select
+                class="action-service"
+                ?disabled=${ro}
+                @change=${(/** @type {Event} */ e) =>
+                  this._setService(
+                    mode,
+                    index,
+                    /** @type {HTMLSelectElement} */ (e.target).value,
+                  )}
+              >
                 ${SERVICES.map(
                   (s) => html`
                     <option value=${s} ?selected=${action.service === s}>${s}</option>
@@ -611,6 +623,12 @@ export class BuildingAutomationModeMatrix extends LitElement {
                       title="Яркость, % (пусто — не задавать)"
                       .value=${brightnessOf(action)}
                       ?disabled=${ro}
+                      @change=${(/** @type {Event} */ e) =>
+                        this._setBrightness(
+                          mode,
+                          index,
+                          /** @type {HTMLInputElement} */ (e.target).value,
+                        )}
                     />`
                   : nothing
               }
@@ -620,7 +638,7 @@ export class BuildingAutomationModeMatrix extends LitElement {
                   : html`<button
                       class="icon"
                       title="Удалить"
-                      @click=${() => this._removeAction(mode, index, actions)}
+                      @click=${() => this._removeAction(mode, index)}
                     >
                       ✕
                     </button>`
@@ -631,10 +649,7 @@ export class BuildingAutomationModeMatrix extends LitElement {
         ${
           ro
             ? nothing
-            : html`<button
-                class="secondary"
-                @click=${() => this._addAction(mode, actions)}
-              >
+            : html`<button class="secondary" @click=${() => this._addAction(mode)}>
                 + действие
               </button>`
         }
@@ -650,172 +665,153 @@ export class BuildingAutomationModeMatrix extends LitElement {
   }
 
   /**
+   * Изменить одно действие черновика (иммутабельно → перерисовка).
    * @param {string} mode
-   * @param {ActionSpec[]} actions
+   * @param {number} index
+   * @param {(action: ActionSpec) => ActionSpec} updater
    */
-  _addAction(mode, actions) {
-    const next = [
-      ...this._draftFor(mode, actions),
-      { domain: "light", service: "turn_off", data: {} },
-    ];
-    void this._saveActions(mode, next);
+  _patchAction(mode, index, updater) {
+    const actions = this._draftNode[mode] ?? [];
+    const next = actions.map((a, i) => (i === index ? updater(a) : a));
+    this._draftNode = { ...this._draftNode, [mode]: next };
   }
 
   /**
    * @param {string} mode
    * @param {number} index
-   * @param {ActionSpec[]} actions
+   * @param {string} domain
    */
-  _removeAction(mode, index, actions) {
-    const draft = this._draftFor(mode, actions);
-    draft.splice(index, 1);
-    void this._saveActions(mode, draft);
+  _setDomain(mode, index, domain) {
+    this._patchAction(mode, index, (a) => normalizeAction({ ...a, domain }));
+  }
+
+  /**
+   * @param {string} mode
+   * @param {number} index
+   * @param {string} service
+   */
+  _setService(mode, index, service) {
+    this._patchAction(mode, index, (a) => normalizeAction({ ...a, service }));
+  }
+
+  /**
+   * @param {string} mode
+   * @param {number} index
+   * @param {string} value
+   */
+  _setBrightness(mode, index, value) {
+    this._patchAction(mode, index, (a) => {
+      const data = { ...a.data };
+      if (value === "") {
+        delete data.brightness_pct;
+      } else {
+        const pct = Number(value);
+        if (Number.isFinite(pct)) {
+          data.brightness_pct = pct;
+        }
+      }
+      return { ...a, data };
+    });
+  }
+
+  /** @param {string} mode */
+  _addAction(mode) {
+    const actions = this._draftNode[mode] ?? [];
+    this._draftNode = {
+      ...this._draftNode,
+      [mode]: [...actions, { domain: "light", service: "turn_off", data: {} }],
+    };
+  }
+
+  /**
+   * @param {string} mode
+   * @param {number} index
+   */
+  _removeAction(mode, index) {
+    const actions = this._draftNode[mode] ?? [];
+    this._draftNode = {
+      ...this._draftNode,
+      [mode]: actions.filter((_, i) => i !== index),
+    };
   }
 
   /** @override */
-  static styles = css`
-    :host {
-      display: block;
-    }
-    .card {
-      background: var(--card-background-color, var(--ha-card-background, #fff));
-      border-radius: 12px;
-      padding: 16px;
-      margin-bottom: 16px;
-      box-shadow: var(--ha-card-box-shadow, 0 2px 4px rgba(0, 0, 0, 0.1));
-    }
-    .card-title {
-      font-size: 1.1rem;
-      font-weight: 500;
-      margin-bottom: 12px;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.95rem;
-    }
-    th,
-    td {
-      text-align: left;
-      padding: 6px 8px;
-      border-bottom: 1px solid var(--divider-color, #eee);
-      vertical-align: top;
-    }
-    th {
-      color: var(--secondary-text-color);
-      font-weight: 500;
-    }
-    .selectors {
-      display: flex;
-      gap: 16px;
-      flex-wrap: wrap;
-      margin-bottom: 12px;
-    }
-    label {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      font-size: 0.9rem;
-      color: var(--secondary-text-color);
-    }
-    select,
-    input {
-      padding: 4px 6px;
-      border: 1px solid var(--divider-color, #ccc);
-      border-radius: 6px;
-      background: var(--card-background-color, #fff);
-      color: var(--primary-text-color);
-    }
-    input[type="number"] {
-      width: 70px;
-    }
-    .action-list {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-    .action-row {
-      display: flex;
-      gap: 6px;
-      align-items: center;
-    }
-    .action-brightness {
-      width: 70px;
-    }
-    .actions-col {
-      display: flex;
-      gap: 6px;
-      white-space: nowrap;
-    }
-    button {
-      background: var(--primary-color);
-      color: var(--text-primary-color, #fff);
-      border: none;
-      border-radius: 8px;
-      padding: 6px 12px;
-      cursor: pointer;
-      font-size: 0.9rem;
-    }
-    button.secondary {
-      background: var(--secondary-background-color, #e0e0e0);
-      color: var(--primary-text-color);
-    }
-    button.icon {
-      padding: 2px 8px;
-      background: var(--error-color, #f44336);
-    }
-    button[disabled] {
-      opacity: 0.5;
-      cursor: default;
-    }
-    .chip {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 12px;
-      font-size: 0.85rem;
-      background: var(--divider-color, #eee);
-      color: var(--secondary-text-color);
-      margin: 2px;
-    }
-    .chip.set {
-      background: var(--primary-color);
-      color: var(--text-primary-color, #fff);
-    }
-    .effective {
-      margin: 8px 0 12px;
-      font-size: 0.9rem;
-    }
-    .hint {
-      color: var(--secondary-text-color);
-      font-size: 0.85rem;
-      margin-top: 6px;
-    }
-    .notice {
-      padding: 8px 12px;
-      margin-bottom: 12px;
-      border-radius: 8px;
-      background: var(--secondary-background-color, #eee);
-      color: var(--secondary-text-color);
-    }
-    .opt-out {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin: 8px 0;
-    }
-    label.inline {
-      flex-direction: row;
-      align-items: center;
-      gap: 8px;
-      color: var(--primary-text-color);
-      font-size: 0.95rem;
-    }
-    .banner.error {
-      color: var(--error-color);
-      padding: 8px 0;
-    }
-  `;
+  static styles = [
+    sharedStyles,
+    css`
+      :host {
+        display: block;
+      }
+      .selectors {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+        margin-bottom: 12px;
+      }
+      label {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        font-size: 0.9rem;
+        color: var(--secondary-text-color);
+      }
+      label.inline {
+        flex-direction: row;
+        align-items: center;
+        gap: 8px;
+        color: var(--primary-text-color);
+        font-size: 0.95rem;
+      }
+      select,
+      input {
+        padding: 4px 6px;
+        border: 1px solid var(--divider-color, #ccc);
+        border-radius: 6px;
+        background: var(--card-background-color, #fff);
+        color: var(--primary-text-color);
+      }
+      input[type="number"] {
+        width: 70px;
+      }
+      .action-list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .action-row {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+      .action-brightness {
+        width: 70px;
+      }
+      .actions-col {
+        display: flex;
+        gap: 6px;
+        white-space: nowrap;
+      }
+      button.icon {
+        padding: 2px 8px;
+        background: var(--error-color, #f44336);
+        color: #fff;
+      }
+      .effective {
+        margin: 8px 0 12px;
+        font-size: 0.9rem;
+      }
+      .hint {
+        margin-top: 6px;
+      }
+      .opt-out {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin: 8px 0;
+      }
+    `,
+  ];
 }
 
 if (!customElements.get("building-automation-mode-matrix")) {

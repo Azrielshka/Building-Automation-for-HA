@@ -274,6 +274,8 @@ export class BuildingAutomationPanel extends LitElement {
       align-items: center;
       gap: 16px;
       margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--divider-color, #e0e0e0);
     }
     .title {
       font-size: 1.4rem;
