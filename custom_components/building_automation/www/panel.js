@@ -69,8 +69,11 @@ export class BuildingAutomationPanel extends LitElement {
   /** @override */
   async connectedCallback() {
     super.connectedCallback();
-    await this._subscribeBus();
+    // Сначала грузим данные (чтение доступно всем), затем — best-effort подписка
+    // на события шины. Подписка не должна блокировать показ данных: неадмин
+    // может не иметь прав на subscribe_events.
     await this._loadAll();
+    await this._subscribeBus();
   }
 
   /** @override */
@@ -144,19 +147,25 @@ export class BuildingAutomationPanel extends LitElement {
   }
 
   async _subscribeBus() {
-    for (const eventType of BUS_EVENTS) {
-      if (!this.hass) {
-        return;
+    try {
+      for (const eventType of BUS_EVENTS) {
+        if (!this.hass) {
+          return;
+        }
+        const unsub = await this.hass.connection.subscribeEvents(
+          () => this._scheduleRefetch(),
+          eventType,
+        );
+        if (!this.isConnected) {
+          unsub(); // отключили пока ждали промис — снимаем сразу (§4)
+          return;
+        }
+        this._unsubs.push(unsub);
       }
-      const unsub = await this.hass.connection.subscribeEvents(
-        () => this._scheduleRefetch(),
-        eventType,
-      );
-      if (!this.isConnected) {
-        unsub(); // отключили пока ждали промис — снимаем сразу (§4)
-        return;
-      }
-      this._unsubs.push(unsub);
+    } catch (err) {
+      // Неадмин может не иметь прав на subscribe_events — не критично:
+      // мониторинг обновляется на смене НАШИХ сущностей (watched).
+      void err;
     }
   }
 
