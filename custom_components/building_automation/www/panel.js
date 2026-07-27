@@ -118,13 +118,19 @@ export class BuildingAutomationPanel extends LitElement {
     this._watchedComputed = true;
   }
 
+  /** Наши сущности + источник расписания (для живого индикатора источника). */
+  _watchedIds() {
+    const sources = this._snapshot?.schedule_source ?? [];
+    return [...this._watched, ...sources];
+  }
+
   /**
    * @param {HomeAssistant} prev
    * @param {HomeAssistant} next
    * @returns {boolean}
    */
   _watchedChanged(prev, next) {
-    return this._watched.some((id) => prev.states[id] !== next.states[id]);
+    return this._watchedIds().some((id) => prev.states[id] !== next.states[id]);
   }
 
   _scheduleRefetch() {

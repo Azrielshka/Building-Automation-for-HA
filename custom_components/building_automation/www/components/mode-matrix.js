@@ -46,6 +46,16 @@ function modeLabel(mode) {
 }
 
 /**
+ * Значение яркости действия для инпута (пусто, если не задана).
+ * @param {ActionSpec} action
+ * @returns {string}
+ */
+function brightnessOf(action) {
+  const value = action.data?.brightness_pct;
+  return typeof value === "number" ? String(value) : "";
+}
+
+/**
  * Узел действий {mode: Action[]} для выбранного scope+key из конфига.
  * @param {BuildingConfig} config
  * @param {Scope} scope
@@ -531,10 +541,38 @@ export class BuildingAutomationModeMatrix extends LitElement {
         row.querySelector(".action-service")
       );
       if (domain && service) {
-        result.push({ domain: domain.value, service: service.value, data: {} });
+        result.push({
+          domain: domain.value,
+          service: service.value,
+          data: this._readData(row, domain.value, service.value),
+        });
       }
     });
     return result.length > 0 || rows.length > 0 ? result : fallback;
+  }
+
+  /**
+   * Прочитать data действия из строки. Пока поддержана яркость для light+turn_on.
+   * @param {Element} row
+   * @param {string} domain
+   * @param {string} service
+   * @returns {Record<string, unknown>}
+   */
+  _readData(row, domain, service) {
+    /** @type {Record<string, unknown>} */
+    const data = {};
+    if (domain === "light" && service === "turn_on") {
+      const input = /** @type {HTMLInputElement | null} */ (
+        row.querySelector(".action-brightness")
+      );
+      if (input && input.value !== "") {
+        const pct = Number(input.value);
+        if (Number.isFinite(pct)) {
+          data.brightness_pct = pct;
+        }
+      }
+    }
+    return data;
   }
 
   /**
@@ -562,6 +600,20 @@ export class BuildingAutomationModeMatrix extends LitElement {
                   `,
                 )}
               </select>
+              ${
+                action.domain === "light" && action.service === "turn_on"
+                  ? html`<input
+                      class="action-brightness"
+                      type="number"
+                      min="1"
+                      max="100"
+                      placeholder="ярк %"
+                      title="Яркость, % (пусто — не задавать)"
+                      .value=${brightnessOf(action)}
+                      ?disabled=${ro}
+                    />`
+                  : nothing
+              }
               ${
                 ro
                   ? nothing
@@ -686,6 +738,9 @@ export class BuildingAutomationModeMatrix extends LitElement {
       display: flex;
       gap: 6px;
       align-items: center;
+    }
+    .action-brightness {
+      width: 70px;
     }
     .actions-col {
       display: flex;

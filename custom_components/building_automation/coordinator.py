@@ -230,6 +230,11 @@ class BuildingCoordinator(DataUpdateCoordinator[OrchestratorState]):
         """Актуальная конфигурация профилей."""
         return self._config if self._config is not None else self.data.config
 
+    @property
+    def schedule_source(self) -> list[str]:
+        """entity_id сущностей источника расписания (за чем следим)."""
+        return list(self._source_ids)
+
     async def async_mutate_config(self, mutate: Callable[[Config], Config]) -> None:
         """Атомарно изменить один узел конфигурации, сохранить и применить.
 

@@ -113,6 +113,27 @@ export class BuildingAutomationMonitoring extends LitElement {
     `;
   }
 
+  /**
+   * Цвет индикатора источника: серый — недоступен/нет; красный — «off»;
+   * зелёный — доступен (включён или иное валидное состояние). Читаем живое
+   * состояние из hass (корень держит источник в watched → dot обновляется).
+   * @param {string} entityId
+   * @returns {"green" | "red" | "grey"}
+   */
+  _sourceColor(entityId) {
+    const st = this.hass?.states[entityId];
+    if (!st || st.state === "unavailable" || st.state === "unknown") {
+      return "grey";
+    }
+    return st.state === "off" ? "red" : "green";
+  }
+
+  /** @param {string} entityId */
+  _sourceTitle(entityId) {
+    const st = this.hass?.states[entityId];
+    return st ? `состояние: ${st.state}` : "недоступен";
+  }
+
   /** @param {StateSnapshot} s */
   _renderBuilding(s) {
     const manual = s.building_control === "manual";
@@ -140,6 +161,26 @@ export class BuildingAutomationMonitoring extends LitElement {
               s.source_available
                 ? nothing
                 : html`<span class="badge warn">источник недоступен</span>`
+            }
+          </span>
+        </div>
+        <div class="row">
+          <span>Объект расписания</span>
+          <span class="sources">
+            ${
+              s.schedule_source.length === 0
+                ? "—"
+                : s.schedule_source.map(
+                    (id) => html`
+                      <span class="source">
+                        <span
+                          class="dot ${this._sourceColor(id)}"
+                          title=${this._sourceTitle(id)}
+                        ></span>
+                        <code>${id}</code>
+                      </span>
+                    `,
+                  )
             }
           </span>
         </div>
@@ -454,6 +495,46 @@ export class BuildingAutomationMonitoring extends LitElement {
     .muted-text {
       color: var(--secondary-text-color);
       font-size: 0.9rem;
+    }
+    .sources {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      align-items: flex-end;
+    }
+    .source {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .source code {
+      font-size: 0.85rem;
+      color: var(--secondary-text-color);
+    }
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex: 0 0 auto;
+      animation: ba-blink 1.4s ease-in-out infinite;
+    }
+    .dot.green {
+      background: var(--success-color, #4caf50);
+    }
+    .dot.red {
+      background: var(--error-color, #f44336);
+    }
+    .dot.grey {
+      background: var(--disabled-text-color, #9e9e9e);
+    }
+    @keyframes ba-blink {
+      0%,
+      100% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0.25;
+      }
     }
     .banner.error {
       color: var(--error-color);
