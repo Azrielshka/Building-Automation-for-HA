@@ -13,9 +13,10 @@
  * @typedef {import("./vendor/lit-3.3.3.js").PropertyValues} PropertyValues
  */
 
-import { LitElement, html, css, nothing } from "./vendor/lit-3.3.3.js";
+import { LitElement, html, css } from "./vendor/lit-3.3.3.js";
 import { getState, getConfig } from "./api.js";
 import "./components/monitoring.js";
+import "./components/mode-matrix.js";
 
 const PLATFORM = "building_automation";
 const BUS_EVENTS = [
@@ -231,12 +232,23 @@ export class BuildingAutomationPanel extends LitElement {
         ></building-automation-monitoring>
       `;
     }
+    if (!this._config) {
+      return html`<div class="banner">Загрузка конфигурации…</div>`;
+    }
     return html`
-      <div class="banner">
-        Матрица режимов${isAdmin ? nothing : " (только чтение)"} — в разработке
-        (под-этап 9b).
-      </div>
+      <building-automation-mode-matrix
+        .hass=${this.hass}
+        .config=${this._config}
+        .snapshot=${this._snapshot}
+        .isAdmin=${isAdmin}
+        @config-changed=${(/** @type {Event} */ e) => this._onConfigChanged(e)}
+      ></building-automation-mode-matrix>
     `;
+  }
+
+  /** @param {Event} event */
+  _onConfigChanged(event) {
+    this._config = /** @type {CustomEvent<BuildingConfig>} */ (event).detail;
   }
 
   /** @override */

@@ -108,7 +108,7 @@ export class BuildingAutomationMonitoring extends LitElement {
           : nothing
       }
       ${this._renderBuilding(s)} ${this._renderFloors(s.floors)}
-      ${this._renderRooms(s.rooms)} ${this._renderPlan(s)}
+      ${this._renderRooms(s.rooms, s.floors)} ${this._renderPlan(s)}
       ${this._renderOrphaned(s.orphaned)}
     `;
   }
@@ -191,7 +191,7 @@ export class BuildingAutomationMonitoring extends LitElement {
                   </td>
                   <td>
                     <span class="badge ${f.gate ? "ok" : "muted"}">
-                      ${f.gate ? "разрешены" : "запрещены"}
+                      ${f.gate ? "включены" : "выключены"}
                     </span>
                   </td>
                   <td>
@@ -211,8 +211,13 @@ export class BuildingAutomationMonitoring extends LitElement {
     `;
   }
 
-  /** @param {RoomInfo[]} rooms */
-  _renderRooms(rooms) {
+  /**
+   * @param {RoomInfo[]} rooms
+   * @param {FloorInfo[]} floors
+   */
+  _renderRooms(rooms, floors) {
+    // Гейт вычисляется на этаж; помещение следует гейту своего этажа.
+    const gateByFloor = new Map(floors.map((f) => [f.floor_id, f.gate]));
     return html`
       <div class="card">
         <div class="card-title">Помещения (${rooms.length})</div>
@@ -222,17 +227,28 @@ export class BuildingAutomationMonitoring extends LitElement {
               <th>Area</th>
               <th>Этаж</th>
               <th>Тип</th>
+              <th>Датчики</th>
               <th>Инвариант</th>
               <th>opt-out</th>
             </tr>
           </thead>
           <tbody>
-            ${rooms.map(
-              (r) => html`
+            ${rooms.map((r) => {
+              const gate = gateByFloor.get(r.floor_id);
+              return html`
                 <tr>
                   <td>${r.area_id}</td>
                   <td>${r.floor_id}</td>
                   <td>${r.room_type ?? "—"}</td>
+                  <td>
+                    ${
+                      gate === undefined
+                        ? "—"
+                        : html`<span class="badge ${gate ? "ok" : "muted"}">
+                            ${gate ? "включены" : "выключены"}
+                          </span>`
+                    }
+                  </td>
                   <td>
                     <span class="badge ${r.status === "ok" ? "ok" : "error"}">
                       ${STATUS_LABELS[r.status] ?? r.status}
@@ -240,8 +256,8 @@ export class BuildingAutomationMonitoring extends LitElement {
                   </td>
                   <td>${r.opt_out ? "да" : "—"}</td>
                 </tr>
-              `,
-            )}
+              `;
+            })}
           </tbody>
         </table>
       </div>
