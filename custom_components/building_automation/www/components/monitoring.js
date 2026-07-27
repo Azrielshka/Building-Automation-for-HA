@@ -107,7 +107,8 @@ export class BuildingAutomationMonitoring extends LitElement {
           ? html`<div class="banner error">Ошибка: ${this._actionError}</div>`
           : nothing
       }
-      ${this._renderBuilding(s)} ${this._renderFloors(s.floors)}
+      ${this._renderBuilding(s)}
+      ${this._renderFloors(s.floors, s.building_control === "manual")}
       ${this._renderRooms(s.rooms, s.floors)} ${this._renderPlan(s)}
       ${this._renderOrphaned(s.orphaned)}
     `;
@@ -205,8 +206,11 @@ export class BuildingAutomationMonitoring extends LitElement {
     `;
   }
 
-  /** @param {FloorInfo[]} floors */
-  _renderFloors(floors) {
+  /**
+   * @param {FloorInfo[]} floors
+   * @param {boolean} buildingManual  здание в Ручном — глушит гейты всех этажей
+   */
+  _renderFloors(floors, buildingManual) {
     return html`
       <div class="card">
         <div class="card-title">Этажи</div>
@@ -229,6 +233,11 @@ export class BuildingAutomationMonitoring extends LitElement {
                     <span class="badge ${manual ? "warn" : "ok"}">
                       ${manual ? "Ручной" : "Авто"}
                     </span>
+                    ${
+                      buildingManual
+                        ? html`<span class="muted-note">· здание: Ручной</span>`
+                        : nothing
+                    }
                   </td>
                   <td>
                     <span class="badge ${f.gate ? "ok" : "muted"}">
@@ -495,6 +504,11 @@ export class BuildingAutomationMonitoring extends LitElement {
     .muted-text {
       color: var(--secondary-text-color);
       font-size: 0.9rem;
+    }
+    .muted-note {
+      color: var(--secondary-text-color);
+      font-size: 0.85rem;
+      margin-left: 4px;
     }
     .sources {
       display: flex;
