@@ -19,7 +19,7 @@
  */
 
 import { LitElement, html, css, nothing } from "../vendor/lit-3.3.3.js";
-import { setActions, clearActions, setModeSettings } from "../api.js";
+import { setActions, clearActions, setModeSettings, setOptOut } from "../api.js";
 
 const MODES = ["lesson", "break", "window", "off"];
 /** @type {Record<string, string>} */
@@ -164,6 +164,18 @@ export class BuildingAutomationModeMatrix extends LitElement {
     }
     const hass = this.hass;
     await this._run(() => clearActions(hass, this._scope, this._key, mode));
+  }
+
+  /**
+   * @param {string} areaId
+   * @param {boolean} opted
+   */
+  async _setOptOut(areaId, opted) {
+    if (!this.hass) {
+      return;
+    }
+    const hass = this.hass;
+    await this._run(() => setOptOut(hass, areaId, opted));
   }
 
   /**
@@ -358,6 +370,11 @@ export class BuildingAutomationModeMatrix extends LitElement {
         </div>
         ${
           this._scope === "area" && this._key !== null
+            ? this._renderOptOut(config, this._key)
+            : nothing
+        }
+        ${
+          this._scope === "area" && this._key !== null
             ? this._renderEffective(config, this._key)
             : nothing
         }
@@ -374,6 +391,38 @@ export class BuildingAutomationModeMatrix extends LitElement {
             ${MODES.map((mode) => this._renderActionRow(node, mode))}
           </tbody>
         </table>
+      </div>
+    `;
+  }
+
+  /**
+   * Тумблер opt-out помещения (Q3=C): исключить из управления по расписанию.
+   * @param {BuildingConfig} config
+   * @param {string} areaId
+   */
+  _renderOptOut(config, areaId) {
+    const opted = (config.opted_out_areas ?? []).includes(areaId);
+    const ro = !this.isAdmin;
+    return html`
+      <div class="opt-out">
+        <label class="inline">
+          <input
+            type="checkbox"
+            .checked=${opted}
+            ?disabled=${ro}
+            @change=${(/** @type {Event} */ e) =>
+              this._setOptOut(
+                areaId,
+                /** @type {HTMLInputElement} */ (e.target).checked,
+              )}
+          />
+          Исключить помещение из управления по расписанию (opt-out)
+        </label>
+        ${
+          opted
+            ? html`<span class="chip set">исключено — каскад пропускает</span>`
+            : nothing
+        }
       </div>
     `;
   }
@@ -692,6 +741,20 @@ export class BuildingAutomationModeMatrix extends LitElement {
       border-radius: 8px;
       background: var(--secondary-background-color, #eee);
       color: var(--secondary-text-color);
+    }
+    .opt-out {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin: 8px 0;
+    }
+    label.inline {
+      flex-direction: row;
+      align-items: center;
+      gap: 8px;
+      color: var(--primary-text-color);
+      font-size: 0.95rem;
     }
     .banner.error {
       color: var(--error-color);

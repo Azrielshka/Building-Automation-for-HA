@@ -28,7 +28,7 @@ from homeassistant.helpers import (
     floor_registry as fr,
 )
 
-from ..const import LABEL_FLOOR_AREA, LABEL_OPT_OUT, LABEL_TYPE_PREFIX
+from ..const import LABEL_FLOOR_AREA, LABEL_TYPE_PREFIX
 from ..domain.topology import TopologySnapshot, evaluate_area
 from ..domain.types import Floor, Room, RoomType
 
@@ -85,7 +85,9 @@ def build_topology_snapshot(hass: HomeAssistant) -> TopologySnapshot:
             area_id=area.id,
             floor_id=area.floor_id,
             room_type=_room_type(area.labels),
-            opt_out=LABEL_OPT_OUT in area.labels,
+            # opt-out — политика Оркестратора из .storage (Q3=C), не метка реестра;
+            # накладывается координатором через topology.apply_opt_out.
+            opt_out=False,
             status=evaluate_area(lights.get(area.id, [])),
         )
 

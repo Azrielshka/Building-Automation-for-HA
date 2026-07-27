@@ -122,6 +122,20 @@ export async function clearActions(hass, scope, key, mode) {
 }
 
 /**
+ * Исключить помещение из управления по расписанию или вернуть (Q3=C).
+ * opt-out — политика Оркестратора в .storage, не метка реестра.
+ * @param {HomeAssistant} hass
+ * @param {string} areaId
+ * @param {boolean} opted
+ * @returns {Promise<BuildingConfig>}
+ */
+export async function setOptOut(hass, areaId, opted) {
+  return unwrapConfig(
+    await hass.callWS({ type: `${DOMAIN}/set_opt_out`, area_id: areaId, opted }),
+  );
+}
+
+/**
  * Пересобрать снимки и применить каскад заново (сервис, не WS-команда).
  * @param {HomeAssistant} hass
  * @returns {Promise<void>}

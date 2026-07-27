@@ -148,6 +148,7 @@
  * @property {string} fallback_mode
  * @property {Record<string, ModeSettingsSpec>} modes
  * @property {ActionsSection} actions
+ * @property {string[]} opted_out_areas   помещения, исключённые из управления
  */
 
 export {};

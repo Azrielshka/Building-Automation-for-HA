@@ -80,6 +80,7 @@ def async_register_commands(hass: HomeAssistant) -> None:
         ws_set_mode_settings,
         ws_set_actions,
         ws_clear_actions,
+        ws_set_opt_out,
     ):
         websocket_api.async_register_command(hass, command)
 
@@ -449,3 +450,30 @@ async def ws_clear_actions(
         return
     mutate = _node_clearer(msg["scope"], msg.get("key"), ScheduleMode(msg["mode"]))
     await _mutate(hass, connection, msg, mutate)
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/set_opt_out",
+        vol.Required("area_id"): str,
+        vol.Required("opted"): bool,
+    }
+)
+@websocket_api.async_response
+async def ws_set_opt_out(
+    hass: HomeAssistant, connection: Connection, msg: dict[str, Any]
+) -> None:
+    """Исключить помещение из управления по расписанию или вернуть (Q3=C)."""
+    area_id = msg["area_id"]
+    opted = msg["opted"]
+
+    def _apply(config: Config) -> Config:
+        current = set(config.opted_out_areas)
+        if opted:
+            current.add(area_id)
+        else:
+            current.discard(area_id)
+        return replace(config, opted_out_areas=frozenset(current))
+
+    await _mutate(hass, connection, msg, _apply)

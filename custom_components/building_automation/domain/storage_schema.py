@@ -88,6 +88,7 @@ def dump_config(config: Config) -> RawConfig:
             "room_type": _dump_keyed(config.actions_by_room_type),
             "area": _dump_keyed(config.actions_by_area),
         },
+        "opted_out_areas": sorted(config.opted_out_areas),
     }
 
 
@@ -177,4 +178,14 @@ def load_config(raw: RawConfig) -> Config:
         ),
         actions_by_area=_load_keyed(actions.get("area", {}), str, "actions.area"),
         fallback_mode=ScheduleMode(raw["fallback_mode"]),
+        opted_out_areas=frozenset(_load_opted_out(raw.get("opted_out_areas", []))),
     )
+
+
+def _load_opted_out(raw: Any, location: str = "opted_out_areas") -> list[str]:
+    """Провалидировать список исключённых area_id (недоверенный вход)."""
+    if not isinstance(raw, list):
+        raise ConfigValidationError(location, "ожидался список area_id")
+    for index, item in enumerate(raw):
+        _require(item, str, f"{location}[{index}]")
+    return raw

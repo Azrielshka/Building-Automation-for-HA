@@ -55,6 +55,7 @@ def _full_config() -> Config:
             ("103_vestibiul", ScheduleMode.WINDOW): (Action("light", "turn_on"),),
         },
         fallback_mode=ScheduleMode.OFF,
+        opted_out_areas=frozenset({"104_kabinet", "105_zal"}),
     )
 
 
@@ -91,6 +92,28 @@ def test_toggle_service_rejected() -> None:
         load_config(_raw_with_action("light", "toggle"))
     assert exc.value.location.endswith(".service")
     assert "toggle" in exc.value.message
+
+
+def test_opted_out_areas_roundtrip() -> None:
+    """Множество исключённых помещений переживает dump→load (Q3=C)."""
+    config = _full_config()
+    restored = load_config(dump_config(config))
+    assert restored.opted_out_areas == frozenset({"104_kabinet", "105_zal"})
+
+
+def test_opted_out_areas_absent_defaults_empty() -> None:
+    """Старый файл без opted_out_areas грузится с пустым множеством."""
+    restored = load_config(_raw_with_action("light", "turn_off"))
+    assert restored.opted_out_areas == frozenset()
+
+
+def test_opted_out_areas_wrong_type_rejected() -> None:
+    """Неверный тип opted_out_areas отвергается с указанием места."""
+    raw = _raw_with_action("light", "turn_off")
+    raw["opted_out_areas"] = "104_kabinet"  # строка вместо списка
+    with pytest.raises(ConfigValidationError) as exc:
+        load_config(raw)
+    assert exc.value.location == "opted_out_areas"
 
 
 def test_wrong_type_gives_error_with_location() -> None:

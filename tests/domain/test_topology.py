@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from custom_components.building_automation.domain.topology import (
     TopologySnapshot,
+    apply_opt_out,
     evaluate_area,
 )
 from custom_components.building_automation.domain.types import (
@@ -51,3 +52,26 @@ def test_rooms_of_returns_floor_rooms_without_aggregate() -> None:
 def test_aggregate_area_of_returns_floor_aggregate() -> None:
     """aggregate_area_of возвращает агрегатную Area этажа."""
     assert _snapshot().aggregate_area_of("f1") == "area_floor1"
+
+
+def test_apply_opt_out_marks_listed_rooms() -> None:
+    """apply_opt_out ставит opt_out=True указанным помещениям, остальным False."""
+    result = apply_opt_out(_snapshot(), {"area_101"})
+    assert result.rooms["area_101"].opt_out is True
+    assert result.rooms["area_102"].opt_out is False
+
+
+def test_apply_opt_out_clears_when_absent() -> None:
+    """Помещение, ранее исключённое, но не в множестве — снова под управлением."""
+    base = TopologySnapshot(
+        floors={"f1": Floor(floor_id="f1")},
+        rooms={"area_101": Room(area_id="area_101", floor_id="f1", opt_out=True)},
+    )
+    result = apply_opt_out(base, frozenset())
+    assert result.rooms["area_101"].opt_out is False
+
+
+def test_apply_opt_out_empty_is_identity_of_flags() -> None:
+    """Пустое множество — все помещения без opt_out."""
+    result = apply_opt_out(_snapshot(), frozenset())
+    assert all(not r.opt_out for r in result.rooms.values())

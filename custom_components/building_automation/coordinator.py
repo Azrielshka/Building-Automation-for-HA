@@ -45,6 +45,7 @@ from .const import CONF_FALLBACK, CONF_SCHEDULE_SOURCE, DOMAIN
 from .domain.machine import decide
 from .domain.schedule import resolve_schedule_mode
 from .domain.storage_schema import dump_config, load_config
+from .domain.topology import TopologySnapshot, apply_opt_out
 from .domain.types import (
     Config,
     ControlMode,
@@ -86,6 +87,7 @@ def _default_config(fallback: ScheduleMode) -> Config:
         actions_by_room_type={},
         actions_by_area={},
         fallback_mode=fallback,
+        opted_out_areas=frozenset(),
     )
 
 
@@ -105,6 +107,10 @@ class BuildingCoordinator(DataUpdateCoordinator[OrchestratorState]):
         # их нельзя чередовать, иначе одна затрёт узел другой (ТЗ §11.1).
         self._config_lock = asyncio.Lock()
         self._config: Config | None = None
+        # Топология из реестра БЕЗ opt-out; политику opt-out из конфига
+        # накладываем поверх на каждом цикле (`_topology`), т.к. она может
+        # меняться без изменения реестра (Q3=C).
+        self._topology_base: TopologySnapshot | None = None
         self._topology_dirty = False
         self.gates: dict[FloorId, bool] = {}
         self.last_plan: CascadePlan | None = None
@@ -120,17 +126,26 @@ class BuildingCoordinator(DataUpdateCoordinator[OrchestratorState]):
         events = read_schedule_events(self.hass, self._source_ids)
         return resolve_schedule_mode(events, self._fallback)
 
+    def _topology(self) -> TopologySnapshot:
+        """Снимок топологии с наложенной политикой opt-out из конфига (Q3=C)."""
+        if self._topology_base is None:
+            self._topology_base = build_topology_snapshot(self.hass)
+        opted: frozenset[str] = (
+            self._config.opted_out_areas if self._config is not None else frozenset()
+        )
+        return apply_opt_out(self._topology_base, opted)
+
     async def _async_update_data(self) -> OrchestratorState:
         """Собрать начальный снимок состояния (без применения; см. Started)."""
         config = await self._config_store.async_load()
         if config is None:
             config = _default_config(self._fallback)
         self._config = config
-        topology = build_topology_snapshot(self.hass)
+        self._topology_base = build_topology_snapshot(self.hass)
         resolution = self._read_resolution()
         return OrchestratorState(
             config=config,
-            topology=topology,
+            topology=self._topology(),
             control=ControlState(building=ControlMode.AUTO, floors={}),
             schedule_mode=resolution.mode,
             source_available=resolution.source_available,
@@ -240,11 +255,15 @@ class BuildingCoordinator(DataUpdateCoordinator[OrchestratorState]):
         """Один цикл: снимок → decide → исполнение → рассылка сущностям."""
         async with self._lock:
             state = self.data
-            if self._config is not None and state.config is not self._config:
-                state = replace(state, config=self._config)
             if self._topology_dirty:
-                state = replace(state, topology=build_topology_snapshot(self.hass))
+                self._topology_base = build_topology_snapshot(self.hass)
                 self._topology_dirty = False
+            # Конфиг и топология (с наложенным opt-out) всегда берутся актуальные:
+            # точечная правка профилей/opt-out меняет их без изменения реестра.
+            if self._config is not None:
+                state = replace(
+                    state, config=self._config, topology=self._topology()
+                )
             previous_applied = state.applied_mode
             now = self.hass.loop.time()
             decision = decide(state, inp, now)

@@ -38,11 +38,10 @@ PANEL_WEBCOMPONENT: Final = "building-automation-panel"  # имя custom element
 PANEL_TITLE: Final = "Оркестратор здания"
 PANEL_ICON: Final = "mdi:office-building-cog"
 
-# Метки (Labels) на Area. ba_floor_area и ba_type_* проставляет генератор
-# ha-lighting-compilers; ba_optout — вручную (эксплуатационное решение, §3.4 ТЗ).
+# Метки (Labels) на Area, которые проставляет генератор ha-lighting-compilers.
+# opt-out — НЕ метка: это политика Оркестратора в .storage (решение Q3=C).
 LABEL_FLOOR_AREA: Final = "ba_floor_area"  # агрегатная Area этажа
 LABEL_TYPE_PREFIX: Final = "ba_type_"  # тип помещения: ba_type_<RoomType>
-LABEL_OPT_OUT: Final = "ba_optout"  # исключение из управления расписанием
 
 # Версия схемы хранилища (.storage). Миграция — в domain/storage_schema.py.
 STORAGE_VERSION: Final = 1

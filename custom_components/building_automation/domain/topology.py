@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from collections.abc import Collection, Mapping, Sequence
+from dataclasses import dataclass, replace
 
 from .types import AreaId, AreaStatus, Floor, FloorId, Room
 
@@ -27,6 +27,22 @@ class TopologySnapshot:
         """Агрегатная Area этажа, если задана."""
         known = self.floors.get(floor)
         return known.aggregate_area_id if known is not None else None
+
+
+def apply_opt_out(
+    topology: TopologySnapshot, opted_out_areas: Collection[AreaId]
+) -> TopologySnapshot:
+    """Наложить политику opt-out (из конфига) на снимок топологии (Q3=C).
+
+    Помещения из `opted_out_areas` получают `opt_out=True`; каскад пропустит их
+    с причиной OPT_OUT. Помещения вне множества — `opt_out=False`. Чистая
+    функция: opt-out хранится в `.storage` Оркестратора, а не меткой реестра.
+    """
+    rooms = {
+        area_id: replace(room, opt_out=area_id in opted_out_areas)
+        for area_id, room in topology.rooms.items()
+    }
+    return replace(topology, rooms=rooms)
 
 
 def evaluate_area(light_entities: Sequence[str]) -> AreaStatus:

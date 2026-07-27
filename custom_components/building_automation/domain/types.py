@@ -152,7 +152,13 @@ class ModeSettings:
 
 @dataclass(frozen=True)
 class Config:
-    """Конфигурация Оркестратора: профили и настройки режимов (SPEC §3.1)."""
+    """Конфигурация Оркестратора: профили и настройки режимов (SPEC §3.1).
+
+    `opted_out_areas` — помещения, исключённые из управления по расписанию. Это
+    **операционная политика** Оркестратора: хранится в его `.storage`, а не
+    меткой в реестре HA (решение Q3=C). Каскад пропускает такие помещения с
+    причиной OPT_OUT; оболочка накладывает это множество на снимок топологии.
+    """
 
     modes: Mapping[ScheduleMode, ModeSettings]
     actions_object: Mapping[ScheduleMode, ActionSet]
@@ -160,6 +166,7 @@ class Config:
     actions_by_room_type: Mapping[tuple[RoomType, ScheduleMode], ActionSet]
     actions_by_area: Mapping[tuple[AreaId, ScheduleMode], ActionSet]
     fallback_mode: ScheduleMode
+    opted_out_areas: frozenset[AreaId] = frozenset()
 
 
 @dataclass(frozen=True)
