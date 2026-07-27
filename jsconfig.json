@@ -8,6 +8,7 @@
     "target": "ES2022",
     "module": "ES2022",
     "moduleResolution": "bundler",
+    "useDefineForClassFields": false,
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,

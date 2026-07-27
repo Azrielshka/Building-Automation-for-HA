@@ -31,6 +31,13 @@ TARGET_FLOOR: Final = "floor"
 # Атрибут сущности отложенного перехода — момент применения.
 ATTR_APPLY_AT: Final = "apply_at"
 
+# Панель пусконаладчика (этап 9).
+PANEL_URL_PATH: Final = "building-automation"  # маршрут в боковом меню
+PANEL_STATIC_URL: Final = f"/{DOMAIN}_panel"  # база статики www/
+PANEL_WEBCOMPONENT: Final = "building-automation-panel"  # имя custom element
+PANEL_TITLE: Final = "Оркестратор здания"
+PANEL_ICON: Final = "mdi:office-building-cog"
+
 # Метки (Labels) на Area. ba_floor_area и ba_type_* проставляет генератор
 # ha-lighting-compilers; ba_optout — вручную (эксплуатационное решение, §3.4 ТЗ).
 LABEL_FLOOR_AREA: Final = "ba_floor_area"  # агрегатная Area этажа

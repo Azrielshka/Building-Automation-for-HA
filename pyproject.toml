@@ -116,6 +116,7 @@ module = [
     "custom_components.building_automation.select",
     "custom_components.building_automation.switch",
     "custom_components.building_automation.websocket_api",
+    "custom_components.building_automation.panel",
     "custom_components.building_automation.adapters.*",
 ]
 disable_error_code = [

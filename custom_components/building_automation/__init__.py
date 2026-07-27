@@ -28,6 +28,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Отложенные импорты — разрыв зависимости ядра от HA (см. docstring модуля).
     from .const import PLATFORMS  # noqa: PLC0415
     from .coordinator import BuildingCoordinator  # noqa: PLC0415
+    from .panel import async_setup_panel  # noqa: PLC0415
     from .websocket_api import async_register_commands  # noqa: PLC0415
 
     coordinator = BuildingCoordinator(hass, entry)
@@ -36,6 +37,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.config_entries.async_forward_entry_setups(entry, list(PLATFORMS))
     _async_register_services(hass, coordinator)
     async_register_commands(hass)
+    await async_setup_panel(hass)
     return True
 
 
@@ -54,6 +56,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         for service in (SERVICE_SET_CONTROL_MODE, SERVICE_REAPPLY):
             if hass.services.has_service(DOMAIN, service):
                 hass.services.async_remove(DOMAIN, service)
+        from .panel import async_remove_panel  # noqa: PLC0415
+
+        async_remove_panel(hass)
     return unloaded
 
 
