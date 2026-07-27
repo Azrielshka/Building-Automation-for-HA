@@ -266,9 +266,7 @@ class BuildingCoordinator(DataUpdateCoordinator[OrchestratorState]):
             # Конфиг и топология (с наложенным opt-out) всегда берутся актуальные:
             # точечная правка профилей/opt-out меняет их без изменения реестра.
             if self._config is not None:
-                state = replace(
-                    state, config=self._config, topology=self._topology()
-                )
+                state = replace(state, config=self._config, topology=self._topology())
             previous_applied = state.applied_mode
             now = self.hass.loop.time()
             decision = decide(state, inp, now)
