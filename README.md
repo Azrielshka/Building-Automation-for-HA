@@ -20,6 +20,26 @@
 | [`docs/acceptance-protocol.md`](docs/acceptance-protocol.md) | протокол приёмки (этап 10): метрики, чек-лист, что осталось на объекте |
 | [`docs/contract-ha-lighting-compilers.md`](docs/contract-ha-lighting-compilers.md) | контракт со смежным проектом-генератором |
 
+## Установка через HACS
+
+Интеграция подключается как **custom repository** (в дефолтный каталог HACS не
+публикуется — это приватная сборка под объект).
+
+1. HACS → ⋮ (вверху справа) → **Custom repositories**.
+2. Репозиторий: `https://github.com/Azrielshka/Building-Automation-for-HA`,
+   категория — **Integration**. Добавить.
+3. Найти «Building Automation — Оркестратор здания» в списке, установить,
+   **перезапустить Home Assistant**.
+4. Настройки → Устройства и службы → **Добавить интеграцию** → Building
+   Automation.
+
+> HACS видит только **публичные** репозитории и тянет **релизы** (не просто
+> теги). Условия: репозиторий публичный, на нужный тег опубликован GitHub
+> Release. Обновления интеграции = новые релизы.
+
+Альтернатива без HACS — скопировать `custom_components/building_automation/` в
+`config/custom_components/` вручную и перезапустить HA.
+
 ## Статус
 
 **Этапы 0–10 закрыты (тег `0.5.0`).** Реализовано и проверено на песочнице

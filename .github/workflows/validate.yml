@@ -14,3 +14,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: home-assistant/actions/hassfest@master
+
+  hacs:
+    name: HACS (валидация репозитория как custom repository)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: HACS validation
+        uses: hacs/action@main
+        with:
+          category: integration
+          # custom repository, не default store → в home-assistant/brands
+          # записи нет; проверку бренд-иконки пропускаем осознанно.
+          ignore: brands
