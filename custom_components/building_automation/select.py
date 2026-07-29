@@ -40,6 +40,9 @@ class BuildingControlSelect(CoordinatorEntity[BuildingCoordinator], SelectEntity
 
     _attr_has_entity_name = True
     _attr_name = "Режим управления зданием"
+    # Значения опций остаются auto/manual (стабильны для сервисов, машины и
+    # хранилища); подписи в UI берутся из переводов состояний по translation_key.
+    _attr_translation_key = "building_control"
     _attr_options: ClassVar[list[str]] = [_OPTION_AUTO, _OPTION_MANUAL]
 
     def __init__(self, coordinator: BuildingCoordinator) -> None:
