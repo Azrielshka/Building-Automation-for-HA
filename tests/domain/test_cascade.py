@@ -13,10 +13,21 @@ from custom_components.building_automation.domain.types import (
     FloorControl,
     Room,
     SkipReason,
+    is_room_pinned,
 )
 
 _ACTION = Action("light", "turn_off")
+_AUTO_OFF = Action("arvid_dali_center", "set_autobrightness", {"enabled": False})
+_AUTO_ON = Action("arvid_dali_center", "set_autobrightness", {"enabled": True})
 _AUTO = ControlState(building=ControlMode.AUTO, floors={})
+
+
+def _by_target(plan) -> dict:
+    """Действия по целевой Area (для проверки двух потоков каскада)."""
+    result: dict = {}
+    for cmd in plan.commands:
+        result.setdefault(cmd.target_area_id, []).append(cmd.action)
+    return result
 
 
 def _floor_snapshot() -> TopologySnapshot:
@@ -214,3 +225,60 @@ def test_expanded_commands_carry_their_actions() -> None:
     plan = plan_cascade(_floor_snapshot(), {"a1": (_ACTION,), "a2": (other,)}, _AUTO)
     by_target = {c.target_area_id: c.action for c in plan.commands}
     assert by_target == {"a1": _ACTION, "a2": other}
+
+
+# --- Двухпоточный каскад: автояркость не схлопывается (этап 11) ---
+
+
+def test_autobrightness_never_collapses_to_aggregate() -> None:
+    """Свет схлопывается в агрегатную, автояркость — по помещениям того же этажа."""
+    actions = {"a1": (_ACTION, _AUTO_OFF), "a2": (_ACTION, _AUTO_OFF)}
+    by_target = _by_target(plan_cascade(_floor_snapshot(), actions, _AUTO))
+    assert by_target["af1"] == [_ACTION]  # свет — одной командой на агрегатную
+    assert by_target["a1"] == [_AUTO_OFF]  # автояркость — по помещению
+    assert by_target["a2"] == [_AUTO_OFF]
+
+
+def test_autobrightness_only_no_aggregate_command() -> None:
+    """Профиль лишь из автояркости → команды по помещениям, агрегатной нет."""
+    actions = {"a1": (_AUTO_OFF,), "a2": (_AUTO_OFF,)}
+    plan = plan_cascade(_floor_snapshot(), actions, _AUTO)
+    targets = {c.target_area_id for c in plan.commands}
+    assert targets == {"a1", "a2"}
+    assert "af1" not in targets
+
+
+def test_collapse_uses_light_only_ignoring_autobrightness() -> None:
+    """Однородность света не зависит от различий автояркости между помещениями."""
+    actions = {"a1": (_ACTION, _AUTO_ON), "a2": (_ACTION, _AUTO_OFF)}
+    by_target = _by_target(plan_cascade(_floor_snapshot(), actions, _AUTO))
+    assert by_target["af1"] == [_ACTION]  # свет всё равно схлопнулся
+    assert by_target["a1"] == [_AUTO_ON]  # автояркость — своя у каждого
+    assert by_target["a2"] == [_AUTO_OFF]
+
+
+def test_autobrightness_expands_with_light_when_room_skipped() -> None:
+    """Пропуск помещения разворачивает свет; автояркость и так по помещениям."""
+    a1 = Room(area_id="a1", floor_id="f1", opt_out=True)
+    a2 = Room(area_id="a2", floor_id="f1")
+    plan = plan_cascade(
+        _snapshot_with(a1, a2),
+        {"a1": (_ACTION, _AUTO_OFF), "a2": (_ACTION, _AUTO_OFF)},
+        _AUTO,
+    )
+    assert _reasons(plan) == {"a1": SkipReason.OPT_OUT}
+    by_target = _by_target(plan)
+    assert set(by_target) == {"a2"}  # a1 пропущено целиком, агрегатной нет
+    assert _ACTION in by_target["a2"]
+    assert _AUTO_OFF in by_target["a2"]
+
+
+def test_light_stream_invariant_holds_with_autobrightness() -> None:
+    """Инвариант: свет — единая цель; автояркость — только помещения."""
+    actions = {"a1": (_ACTION, _AUTO_OFF), "a2": (_ACTION, _AUTO_OFF)}
+    plan = plan_cascade(_floor_snapshot(), actions, _AUTO)
+    light_targets = {c.target_area_id for c in plan.commands if c.action == _ACTION}
+    auto_targets = {c.target_area_id for c in plan.commands if is_room_pinned(c.action)}
+    assert light_targets == {"af1"}  # свет — единая цель
+    assert auto_targets == {"a1", "a2"}  # автояркость — только помещения
+    assert "af1" not in auto_targets

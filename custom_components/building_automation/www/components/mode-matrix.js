@@ -30,8 +30,43 @@ const MODE_LABELS = {
   window: "Окошко",
   off: "Не рабочее время",
 };
-const DOMAINS = ["light", "switch"];
-const SERVICES = ["turn_on", "turn_off"];
+/**
+ * Вид действия профиля — понятная наладчику подпись вместо сырых домен×сервис.
+ * Автояркость (arvid_dali_center.set_autobrightness) кодирует состояние в
+ * data.enabled; домен/сервис/enabled должны совпадать с ядром (storage_schema).
+ * @typedef {object} ActionKind
+ * @property {string} id
+ * @property {string} label
+ * @property {string} domain
+ * @property {string} service
+ * @property {boolean} [enabled]
+ */
+/** @type {ActionKind[]} */
+const ACTION_KINDS = [
+  { id: "light_on", label: "Свет — включить", domain: "light", service: "turn_on" },
+  { id: "light_off", label: "Свет — выключить", domain: "light", service: "turn_off" },
+  { id: "switch_on", label: "Реле — включить", domain: "switch", service: "turn_on" },
+  {
+    id: "switch_off",
+    label: "Реле — выключить",
+    domain: "switch",
+    service: "turn_off",
+  },
+  {
+    id: "autobright_on",
+    label: "Автояркость — включить",
+    domain: "arvid_dali_center",
+    service: "set_autobrightness",
+    enabled: true,
+  },
+  {
+    id: "autobright_off",
+    label: "Автояркость — выключить",
+    domain: "arvid_dali_center",
+    service: "set_autobrightness",
+    enabled: false,
+  },
+];
 const ROOM_TYPES = ["class", "korridor", "recreation", "zal", "special", "hall"];
 /** @type {Record<Scope, string>} */
 const SCOPE_LABELS = {
@@ -75,21 +110,49 @@ function cloneNode(node) {
 }
 
 /**
- * Нормализовать действие: яркость имеет смысл только у light+turn_on;
- * при смене домена/сервиса лишний brightness_pct убираем.
+ * Вид действия (id из ACTION_KINDS) по сохранённому действию.
+ * Для автояркости состояние читается из data.enabled.
  * @param {ActionSpec} action
+ * @returns {string}
+ */
+function kindOf(action) {
+  if (
+    action.domain === "arvid_dali_center" &&
+    action.service === "set_autobrightness"
+  ) {
+    return action.data?.enabled === false ? "autobright_off" : "autobright_on";
+  }
+  const match = ACTION_KINDS.find(
+    (k) => k.domain === action.domain && k.service === action.service,
+  );
+  return match ? match.id : "light_off";
+}
+
+/**
+ * Построить действие для выбранного вида. Яркость сохраняется только при
+ * переходе в «Свет — включить»; у автояркости пишем data.enabled.
+ * @param {string} kindId
+ * @param {Record<string, unknown>} prevData
  * @returns {ActionSpec}
  */
-function normalizeAction(action) {
-  if (action.domain === "light" && action.service === "turn_on") {
-    return action;
+function actionForKind(kindId, prevData) {
+  const kind = ACTION_KINDS.find((k) => k.id === kindId);
+  if (!kind) {
+    return { domain: "light", service: "turn_off", data: {} };
   }
-  if ("brightness_pct" in action.data) {
-    const data = { ...action.data };
-    delete data.brightness_pct;
-    return { ...action, data };
+  if (kind.domain === "arvid_dali_center") {
+    return {
+      domain: kind.domain,
+      service: kind.service,
+      data: { enabled: kind.enabled === true },
+    };
   }
-  return action;
+  /** @type {Record<string, unknown>} */
+  const data = {};
+  if (kindId === "light_on" && typeof prevData.brightness_pct === "number") {
+    data.brightness_pct = prevData.brightness_pct;
+  }
+  return { domain: kind.domain, service: kind.service, data };
 }
 
 /**
@@ -577,43 +640,28 @@ export class BuildingAutomationModeMatrix extends LitElement {
   _renderActionList(mode, actions, ro) {
     return html`
       <div class="action-list">
-        ${actions.map(
-          (action, index) => html`
+        ${actions.map((action, index) => {
+          const kind = kindOf(action);
+          return html`
             <div class="action-row">
               <select
-                class="action-domain"
+                class="action-kind"
                 ?disabled=${ro}
                 @change=${(/** @type {Event} */ e) =>
-                  this._setDomain(
+                  this._setKind(
                     mode,
                     index,
                     /** @type {HTMLSelectElement} */ (e.target).value,
                   )}
               >
-                ${DOMAINS.map(
-                  (d) => html`
-                    <option value=${d} ?selected=${action.domain === d}>${d}</option>
-                  `,
-                )}
-              </select>
-              <select
-                class="action-service"
-                ?disabled=${ro}
-                @change=${(/** @type {Event} */ e) =>
-                  this._setService(
-                    mode,
-                    index,
-                    /** @type {HTMLSelectElement} */ (e.target).value,
-                  )}
-              >
-                ${SERVICES.map(
-                  (s) => html`
-                    <option value=${s} ?selected=${action.service === s}>${s}</option>
+                ${ACTION_KINDS.map(
+                  (k) => html`
+                    <option value=${k.id} ?selected=${kind === k.id}>${k.label}</option>
                   `,
                 )}
               </select>
               ${
-                action.domain === "light" && action.service === "turn_on"
+                kind === "light_on"
                   ? html`<input
                       class="action-brightness"
                       type="number"
@@ -644,8 +692,8 @@ export class BuildingAutomationModeMatrix extends LitElement {
                     </button>`
               }
             </div>
-          `,
-        )}
+          `;
+        })}
         ${
           ro
             ? nothing
@@ -679,19 +727,10 @@ export class BuildingAutomationModeMatrix extends LitElement {
   /**
    * @param {string} mode
    * @param {number} index
-   * @param {string} domain
+   * @param {string} kindId
    */
-  _setDomain(mode, index, domain) {
-    this._patchAction(mode, index, (a) => normalizeAction({ ...a, domain }));
-  }
-
-  /**
-   * @param {string} mode
-   * @param {number} index
-   * @param {string} service
-   */
-  _setService(mode, index, service) {
-    this._patchAction(mode, index, (a) => normalizeAction({ ...a, service }));
+  _setKind(mode, index, kindId) {
+    this._patchAction(mode, index, (a) => actionForKind(kindId, a.data));
   }
 
   /**

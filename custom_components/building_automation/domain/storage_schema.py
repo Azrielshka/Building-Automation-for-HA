@@ -11,6 +11,8 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 from .types import (
+    AUTOBRIGHTNESS_DOMAIN,
+    AUTOBRIGHTNESS_SERVICE,
     Action,
     ActionSet,
     Config,
@@ -21,10 +23,15 @@ from .types import (
 
 type RawConfig = dict[str, Any]
 
-# Белый список для действий профиля (SPEC §4.2 ТЗ): только идемпотентные
-# turn_on/turn_off в доменах light/switch; toggle запрещён.
-_ALLOWED_DOMAINS = frozenset({"light", "switch"})
-_ALLOWED_SERVICES = frozenset({"turn_on", "turn_off"})
+# Белый список пар (домен, сервис) для действий профиля (SPEC §4.2 ТЗ): только
+# идемпотентные операции. Пары, а не крест доменов×сервисов, — иначе третий домен
+# открыл бы и light.set_autobrightness, и arvid_dali_center.turn_on.
+_LIGHTING_SERVICES = frozenset({"turn_on", "turn_off"})
+_ALLOWED_SERVICES: Mapping[str, frozenset[str]] = {
+    "light": _LIGHTING_SERVICES,
+    "switch": _LIGHTING_SERVICES,
+    AUTOBRIGHTNESS_DOMAIN: frozenset({AUTOBRIGHTNESS_SERVICE}),
+}
 
 
 class ConfigValidationError(Exception):
@@ -104,17 +111,38 @@ def migrate(major: int, minor: int, data: RawConfig) -> RawConfig:
 def _load_action(raw: RawConfig, location: str) -> Action:
     domain = raw["domain"]
     service = raw["service"]
-    if domain not in _ALLOWED_DOMAINS:
+    allowed = _ALLOWED_SERVICES.get(domain)
+    if allowed is None:
         raise ConfigValidationError(
             f"{location}.domain",
-            f"домен {domain!r} вне белого списка light/switch",
+            f"домен {domain!r} вне белого списка "
+            f"{', '.join(sorted(_ALLOWED_SERVICES))}",
         )
-    if service not in _ALLOWED_SERVICES:
+    if service not in allowed:
         raise ConfigValidationError(
             f"{location}.service",
-            f"сервис {service!r} запрещён (только turn_on/turn_off)",
+            f"сервис {service!r} запрещён для домена {domain!r}",
         )
-    return Action(domain=domain, service=service, data=dict(raw.get("data", {})))
+    data = dict(raw.get("data", {}))
+    if domain == AUTOBRIGHTNESS_DOMAIN:
+        _validate_autobrightness(data, f"{location}.data")
+    return Action(domain=domain, service=service, data=data)
+
+
+def _validate_autobrightness(data: RawConfig, location: str) -> None:
+    """Данные set_autobrightness: обязателен bool `enabled`, `toggle` запрещён.
+
+    `toggle` неидемпотентен (инвертирует состояние) — режим должен применяться
+    детерминированно, поэтому в профиле допустим только явный `enabled`.
+    """
+    if "toggle" in data:
+        raise ConfigValidationError(
+            f"{location}.toggle",
+            "toggle запрещён (неидемпотентен); задайте enabled",
+        )
+    if "enabled" not in data:
+        raise ConfigValidationError(location, "требуется enabled: bool")
+    _require(data["enabled"], bool, f"{location}.enabled")
 
 
 def _load_actions(raw: Sequence[RawConfig], location: str) -> ActionSet:

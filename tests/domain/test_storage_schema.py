@@ -66,11 +66,15 @@ def test_roundtrip_full() -> None:
 
 
 def _raw_with_action(domain: str, service: str) -> dict:
+    return _raw_with_action_data(domain, service, {})
+
+
+def _raw_with_action_data(domain: str, service: str, data: dict) -> dict:
     return {
         "fallback_mode": "off",
         "modes": {},
         "actions": {
-            "object": {"off": [{"domain": domain, "service": service, "data": {}}]},
+            "object": {"off": [{"domain": domain, "service": service, "data": data}]},
             "floor": {},
             "room_type": {},
             "area": {},
@@ -92,6 +96,67 @@ def test_toggle_service_rejected() -> None:
         load_config(_raw_with_action("light", "toggle"))
     assert exc.value.location.endswith(".service")
     assert "toggle" in exc.value.message
+
+
+def test_autobrightness_action_roundtrips() -> None:
+    """Действие автояркости с enabled проходит валидацию и переживает roundtrip."""
+    config = Config(
+        modes={},
+        actions_object={
+            ScheduleMode.LESSON: (
+                Action("arvid_dali_center", "set_autobrightness", {"enabled": False}),
+            )
+        },
+        actions_by_floor={},
+        actions_by_room_type={},
+        actions_by_area={},
+        fallback_mode=ScheduleMode.OFF,
+    )
+    assert load_config(dump_config(config)) == config
+
+
+def test_autobrightness_requires_enabled() -> None:
+    """set_autobrightness без enabled отвергается (нужно явное состояние)."""
+    with pytest.raises(ConfigValidationError) as exc:
+        load_config(_raw_with_action("arvid_dali_center", "set_autobrightness"))
+    assert exc.value.location.endswith(".data")
+    assert "enabled" in exc.value.message
+
+
+def test_autobrightness_toggle_rejected() -> None:
+    """toggle в data автояркости запрещён (неидемпотентен)."""
+    with pytest.raises(ConfigValidationError) as exc:
+        load_config(
+            _raw_with_action_data(
+                "arvid_dali_center", "set_autobrightness", {"toggle": True}
+            )
+        )
+    assert "toggle" in exc.value.message
+
+
+def test_autobrightness_enabled_must_be_bool() -> None:
+    """enabled не-bool отвергается с указанием места."""
+    with pytest.raises(ConfigValidationError) as exc:
+        load_config(
+            _raw_with_action_data(
+                "arvid_dali_center", "set_autobrightness", {"enabled": "yes"}
+            )
+        )
+    assert exc.value.location.endswith(".enabled")
+
+
+def test_light_cannot_use_autobrightness_service() -> None:
+    """Пары (домен,сервис) закрыты крест-накрест: light+set_autobrightness нельзя."""
+    with pytest.raises(ConfigValidationError) as exc:
+        load_config(_raw_with_action("light", "set_autobrightness"))
+    assert exc.value.location.endswith(".service")
+
+
+def test_autobrightness_domain_cannot_turn_on() -> None:
+    """И наоборот: arvid_dali_center+turn_on запрещён."""
+    with pytest.raises(ConfigValidationError) as exc:
+        load_config(_raw_with_action_data("arvid_dali_center", "turn_on", {}))
+    assert exc.value.location.endswith(".service")
 
 
 def test_opted_out_areas_roundtrip() -> None:

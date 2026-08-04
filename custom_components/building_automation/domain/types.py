@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Final
 
 if TYPE_CHECKING:
     # Разрыв цикла: topology импортирует types (Floor/Room/AreaStatus),
@@ -139,6 +139,26 @@ class Action:
 
 # Набор действий — кортеж ради хешируемости (нужна для схлопывания, SPEC §4.1).
 type ActionSet = tuple[Action, ...]
+
+
+# Управление автояркостью датчиков соседней интеграции (этап 11). Такие действия
+# адресуют датчики освещённости помещения, а не групповой свет — у них нет
+# агрегатной цели этажа, поэтому каскад их не схлопывает (см. is_room_pinned).
+AUTOBRIGHTNESS_DOMAIN: Final = "arvid_dali_center"
+AUTOBRIGHTNESS_SERVICE: Final = "set_autobrightness"
+
+
+def is_room_pinned(action: Action) -> bool:
+    """Действие приколочено к Area помещения (адресует датчики, не свет).
+
+    Групповой свет схлопывается в агрегатную Area этажа; автояркость живёт на
+    датчиках помещений, агрегатной цели у неё нет — такое действие всегда
+    исполняется по Area помещения (этап 11).
+    """
+    return (
+        action.domain == AUTOBRIGHTNESS_DOMAIN
+        and action.service == AUTOBRIGHTNESS_SERVICE
+    )
 
 
 @dataclass(frozen=True)
