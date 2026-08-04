@@ -67,6 +67,7 @@
  * @property {string | null} room_type
  * @property {boolean} opt_out
  * @property {string} status             "ok" | "no_light" | "multiple_lights"
+ * @property {string | null} autobrightness  "on" | "off" | "mixed" | null (нет тумблеров)
  */
 
 /**
@@ -116,6 +117,7 @@
  * @property {RoomInfo[]} rooms
  * @property {PlanInfo | null} last_plan
  * @property {OrphanedInfo} orphaned
+ * @property {string[]} autobrightness_entities  switch.il_* для живого watch
  */
 
 // --- Конфигурация (dump_config) ---

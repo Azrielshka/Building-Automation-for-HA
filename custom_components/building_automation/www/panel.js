@@ -121,10 +121,14 @@ export class BuildingAutomationPanel extends LitElement {
     this._watchedComputed = true;
   }
 
-  /** Наши сущности + источник расписания (для живого индикатора источника). */
+  /**
+   * Наши сущности + источник расписания (живой индикатор источника) +
+   * тумблеры автояркости (живая колонка «Автояркость» в мониторинге).
+   */
   _watchedIds() {
     const sources = this._snapshot?.schedule_source ?? [];
-    return [...this._watched, ...sources];
+    const autobright = this._snapshot?.autobrightness_entities ?? [];
+    return [...this._watched, ...sources, ...autobright];
   }
 
   /**

@@ -30,6 +30,7 @@ import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.core import callback
 
+from .adapters.autobrightness import read_autobrightness_by_area
 from .const import DOMAIN
 from .domain.storage_schema import ConfigValidationError, dump_config
 from .domain.types import (
@@ -228,6 +229,11 @@ def ws_get_state(
         for floor in topology.floors.values()
         if floor.aggregate_area_id is not None
     }
+    # Живое состояние автояркости по помещениям (switch.il_*, этап 11). Только
+    # чтение для индикации; управление идёт через каскад и от этого не зависит.
+    autobrightness, autobrightness_entities = read_autobrightness_by_area(
+        hass, topology.rooms
+    )
 
     plan = coordinator.last_plan
     transition = coordinator.last_transition
@@ -301,9 +307,11 @@ def ws_get_state(
                     ),
                     "opt_out": room.opt_out,
                     "status": room.status.value,
+                    "autobrightness": autobrightness.get(room.area_id),
                 }
                 for room in topology.rooms.values()
             ],
+            "autobrightness_entities": autobrightness_entities,
             "last_plan": last_plan,
             "orphaned": {
                 "areas": sorted(

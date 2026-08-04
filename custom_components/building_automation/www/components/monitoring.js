@@ -56,6 +56,23 @@ function modeBadge(mode) {
   return html`<span class="badge mode">${modeLabel(mode)}</span>`;
 }
 
+/**
+ * Состояние автояркости помещения как бейдж (этап 11).
+ * @param {string | null} state  "on" | "off" | "mixed" | null (нет тумблеров)
+ */
+function autobrightnessBadge(state) {
+  if (state === "on") {
+    return html`<span class="badge ok">вкл</span>`;
+  }
+  if (state === "off") {
+    return html`<span class="badge off">выкл</span>`;
+  }
+  if (state === "mixed") {
+    return html`<span class="badge attention">смешано</span>`;
+  }
+  return html`—`;
+}
+
 export class BuildingAutomationMonitoring extends LitElement {
   /** @override */
   static properties = {
@@ -295,6 +312,7 @@ export class BuildingAutomationMonitoring extends LitElement {
                 <th>Этаж</th>
                 <th>Тип</th>
                 <th>Датчики</th>
+                <th>Автояркость</th>
                 <th>Инвариант</th>
                 <th>opt-out</th>
               </tr>
@@ -316,6 +334,7 @@ export class BuildingAutomationMonitoring extends LitElement {
                             </span>`
                       }
                     </td>
+                    <td>${autobrightnessBadge(r.autobrightness)}</td>
                     <td>
                       <span class="badge ${r.status === "ok" ? "ok" : "alert"}">
                         ${STATUS_LABELS[r.status] ?? r.status}
