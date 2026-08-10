@@ -72,7 +72,8 @@
 
 /**
  * @typedef {object} CommandInfo
- * @property {string} target_area_id
+ * @property {string} target             entity_id (свет) | area_id (автояркость)
+ * @property {string} target_kind        "entity" | "area"
  * @property {string} domain
  * @property {string} service
  * @property {string} level              "floor" | "area"

@@ -42,6 +42,7 @@ PANEL_ICON: Final = "mdi:office-building-cog"
 # opt-out — НЕ метка: это политика Оркестратора в .storage (решение Q3=C).
 LABEL_FLOOR_AREA: Final = "ba_floor_area"  # агрегатная Area этажа
 LABEL_TYPE_PREFIX: Final = "ba_type_"  # тип помещения: ba_type_<RoomType>
+LABEL_AREA_LIGHT: Final = "ba_area_light"  # групповой свет Area — цель каскада
 
 # Версия схемы хранилища (.storage). Миграция — в domain/storage_schema.py.
 STORAGE_VERSION: Final = 1

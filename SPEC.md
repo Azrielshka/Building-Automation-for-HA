@@ -1,6 +1,6 @@
 # SPEC — интеграция «Building Automation» (Оркестратор здания)
 
-Спецификация разработки. Версия 1.3, 2026-08-04.
+Спецификация разработки. Версия 1.4, 2026-08-07.
 
 ## Индекс
 
@@ -140,11 +140,12 @@ opt-out, статус инварианта, принадлежность пом�
 метки) за одной структурой и отвечает на вопросы каскада напрямую. Инвариант
 §3.3 ТЗ — одна функция, которая тестируется списком строк.
 
-> **⏳ Планируется (этап 12, PLAN).** Инвариант переедет на **помеченные** меткой
-> `ba_area_light` светильники: `evaluate_area` будет считать только помеченные, а
-> `Room`/`Floor` получат `light_entity_id`. Это снимет ограничение «одна `light`
-> в Area» (в Area можно держать любой свет). Ещё **не реализовано** — контракт для
-> генератора: [`docs/contract-ha-lighting-compilers.md`](docs/contract-ha-lighting-compilers.md) §8.
+> **Этап 12 — инвариант по метке `ba_area_light`.** Адаптер отбирает световые
+> сущности Area **с меткой** `ba_area_light` и зовёт `evaluate_area` по ним:
+> ровно одна → `OK`, её `entity_id` идёт в `Room.light_entity_id` (для агрегата
+> этажа — `Floor.light_entity_id`); 0 → `NO_LIGHT`, ≥2 → `MULTIPLE_LIGHTS`.
+> Непомеченный свет игнорируется — в Area можно держать любые светильники.
+> Контракт генератора: [`docs/contract-ha-lighting-compilers.md`](docs/contract-ha-lighting-compilers.md) §8.
 
 #### 2.2.3. `domain/profiles.py` — разрешение профилей
 
@@ -224,12 +225,12 @@ BUILDING_MANUAL → FLOOR_MANUAL → OPT_OUT → ORPHANED → INVARIANT_BROKEN
 Area **светового потока** не содержат одновременно агрегатную Area этажа и Area
 его помещения. Автояркость всегда по помещению и в этом инварианте не участвует.
 
-> **⏳ Планируется (этап 12, PLAN).** Цель светового потока сменится с `area_id`
-> на **помеченную** сущность (`Room.light_entity_id`; при схлопывании —
-> `Floor.light_entity_id`). `Command` понесёт цель одного из двух видов
-> (свет-сущность / Area для автояркости), исполнитель будет диспетчеризовать по
-> `entity_id` либо `area_id`. Позволит держать в Area любой свет. Ещё **не
-> реализовано**.
+> **Этап 12 — цель светового потока = сущность.** Свет целится не по `area_id`, а
+> по **помеченной** световой сущности (`Room.light_entity_id`; при схлопывании —
+> `Floor.light_entity_id`). `Command` несёт `target` + `target_kind`
+> (`ENTITY` — свет / `AREA` — автояркость), исполнитель диспетчеризует по
+> `entity_id` либо `area_id`. Так в Area можно держать любой свет, целится только
+> помеченный.
 
 #### 2.2.5. `domain/machine.py` — машина состояний
 
@@ -373,7 +374,7 @@ tests/
 
 | Команда | Права | Вход | Результат |
 |---|---|---|---|
-| `get_state` | любой | — | мониторинг: `building_control`, `schedule_source[]`, `schedule_mode`, `applied_mode`, `source_available`, `pending`, `floors[]` (`control`, `gate`, `aggregate_area_id`), `rooms[]` (`room_type`, `opt_out`, `status`, `autobrightness`), `last_plan` (`commands[]` с `level`, `skipped[]`, `collapse`, `previous_mode`, `applied_mode`), `orphaned`, `autobrightness_entities[]` |
+| `get_state` | любой | — | мониторинг: `building_control`, `schedule_source[]`, `schedule_mode`, `applied_mode`, `source_available`, `pending`, `floors[]` (`control`, `gate`, `aggregate_area_id`), `rooms[]` (`room_type`, `opt_out`, `status`, `autobrightness`), `last_plan` (`commands[]` с `target`/`target_kind`/`level`, `skipped[]`, `collapse`, `previous_mode`, `applied_mode`), `orphaned`, `autobrightness_entities[]` |
 | `get_config` | любой | — | `{config}` — вывод `dump_config` (вкл. `opted_out_areas`) |
 | `set_control_mode` | любой | `target` (`building`/`floor`), `mode` (`auto`/`manual`), `floor_id?` | `{ok}` |
 | `set_mode_settings` | **admin** | `mode`, `delay_seconds`, `sensors_allowed`, `sensors_allowed_by_floor?` | `{config}` |
@@ -927,6 +928,21 @@ score ловит тесты, которые исполняют код, но ни
 ---
 
 ## 9. Changelog
+
+### 1.4 — 2026-08-07 (этап 12 — целеуказание по метке `ba_area_light`)
+
+- **Цель светового потока — сущность, а не `area_id`.** `Command` несёт `target`
+  + `target_kind` (`ENTITY`/`AREA`); свет целит `Room.light_entity_id` (при
+  схлопывании — `Floor.light_entity_id`), автояркость — по `area_id`. Исполнитель
+  диспетчеризует по `entity_id`/`area_id`.
+- **Инвариант — по помеченным `ba_area_light`.** `Room`/`Floor` получили
+  `light_entity_id`; адаптер отбирает световые сущности Area с меткой и зовёт
+  `evaluate_area` по ним. Снято ограничение «одна `light` в Area»: непомеченный
+  свет игнорируется, в Area можно держать любые светильники.
+- **§2.6:** `last_plan.commands[]` — `target`/`target_kind`/`level`.
+- Покрытие ветвей `domain/` 100 % сохранено; `test_cascade` переписан под метку.
+- Зависит от Правки 6 контракта генератора ([`docs/contract-ha-lighting-compilers.md`](docs/contract-ha-lighting-compilers.md) §8).
+  Ожидает объекта: подтверждение переключения света по помеченной сущности.
 
 ### 1.3 — 2026-08-04 (этап 11 — управление автояркостью)
 

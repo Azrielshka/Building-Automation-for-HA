@@ -3,17 +3,20 @@
 Разворачивает эффективные наборы действий помещений в команды, выбирая самый
 высокий однородный уровень (агрегатная Area этажа против отдельных помещений).
 
-Два потока (этап 11):
-- **свет** (`light`/`switch`) схлопывается в агрегатную Area этажа; одно и то же
-  световое действие не уходит родительской и дочерней Area разом;
-- **автояркость** (`is_room_pinned`) адресует датчики помещения, агрегатной цели
-  у неё нет — всегда исполняется по Area помещения. Она не участвует в проверке
-  однородности света и может соседствовать с командой света на агрегатную (это
-  разные устройства, двойного воздействия на свет нет).
+Два потока:
+- **свет** (`light`/`switch`) целится по **конкретной световой сущности** (этап
+  12): помеченный `ba_area_light` свет помещения (`Room.light_entity_id`), а при
+  однородном этаже схлопывается в свет агрегатной Area (`Floor.light_entity_id`).
+  Одно и то же световое действие не уходит на свет агрегата и свет помещения разом;
+- **автояркость** (`is_room_pinned`, этап 11) адресует датчики помещения по
+  `area_id` — сервис сам отбирает датчики. Агрегатной цели у неё нет: всегда по
+  Area помещения. В однородности света не участвует и может соседствовать с
+  командой света на агрегат (разные устройства, двойного воздействия нет).
 """
 
 import json
 from collections.abc import Iterable, Mapping
+from typing import cast
 
 from .topology import TopologySnapshot
 from .types import (
@@ -28,6 +31,7 @@ from .types import (
     Room,
     SkipEntry,
     SkipReason,
+    TargetKind,
     is_room_pinned,
 )
 
@@ -79,7 +83,7 @@ def plan_cascade(
         SkipEntry(area_id=area_id, reason=SkipReason.ORPHANED)
         for area_id in orphaned_area_ids
     ]
-    for floor_id in topology.floors:
+    for floor_id, floor in topology.floors.items():
         rooms = topology.rooms_of(floor_id)
         active: list[Room] = []
         for room in rooms:
@@ -90,14 +94,17 @@ def plan_cascade(
                 active.append(room)
         if not active:
             continue
-        # Поток автояркости: всегда по Area помещения (агрегатной цели нет).
+        # Поток автояркости: всегда по Area помещения (сервис сам отбирает датчики).
         commands.extend(
-            Command(target_area_id=room.area_id, action=action)
+            Command(
+                target=room.area_id, target_kind=TargetKind.AREA, action=action
+            )
             for room in active
             for action in actions.get(room.area_id, ())
             if is_room_pinned(action)
         )
         # Поток света: набор без действий-автояркости — он и решает однородность.
+        # Цель — конкретная световая сущность (этап 12), а не area_id.
         collapsible: dict[AreaId, ActionSet] = {
             room.area_id: tuple(
                 action
@@ -107,17 +114,29 @@ def plan_cascade(
             for room in active
         }
         keys = {_homogeneity_key(collapsible[room.area_id]) for room in active}
-        aggregate = topology.aggregate_area_of(floor_id)
-        # Агрегатная — только если ни одно помещение этажа не пропущено и набор
-        # света однороден (SPEC §4.1). Любой пропуск разворачивает этаж до помещений.
-        if len(active) == len(rooms) and len(keys) == 1 and aggregate is not None:
+        # Схлопывание в свет агрегатной Area — только если ни одно помещение этажа
+        # не пропущено, набор света однороден (SPEC §4.1) и у этажа есть помеченный
+        # свет агрегата. Любой пропуск/разнородность/отсутствие света → по помещениям.
+        if (
+            len(active) == len(rooms)
+            and len(keys) == 1
+            and floor.light_entity_id is not None
+        ):
+            floor_light = floor.light_entity_id  # локал: сужение к str для genexpr
             commands.extend(
-                Command(target_area_id=aggregate, action=action)
+                Command(
+                    target=floor_light, target_kind=TargetKind.ENTITY, action=action
+                )
                 for action in collapsible[active[0].area_id]
             )
         else:
             commands.extend(
-                Command(target_area_id=room.area_id, action=action)
+                Command(
+                    # active ⟹ status OK ⟹ light_entity_id задан (инвариант адаптера)
+                    target=cast(str, room.light_entity_id),
+                    target_kind=TargetKind.ENTITY,
+                    action=action,
+                )
                 for room in active
                 for action in collapsible[room.area_id]
             )

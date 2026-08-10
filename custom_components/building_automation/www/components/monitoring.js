@@ -394,7 +394,7 @@ export class BuildingAutomationMonitoring extends LitElement {
               ${plan.commands.map(
                 (c) => html`
                   <tr>
-                    <td>${c.target_area_id}</td>
+                    <td><code>${c.target}</code></td>
                     <td>${c.domain}.${c.service}</td>
                     <td>${c.level === "floor" ? "этаж" : "помещение"}</td>
                   </tr>

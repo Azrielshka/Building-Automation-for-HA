@@ -224,10 +224,12 @@ def ws_get_state(
     state = coordinator.data
     config = coordinator.config
     topology = state.topology
-    aggregates = {
-        floor.aggregate_area_id
+    # Свет агрегатных Area этажей — для пометки команды уровнем «этаж» (этап 12:
+    # цель светового потока — сущность, схлопывание целит свет агрегата).
+    floor_lights = {
+        floor.light_entity_id
         for floor in topology.floors.values()
-        if floor.aggregate_area_id is not None
+        if floor.light_entity_id is not None
     }
     # Живое состояние автояркости по помещениям (switch.il_*, этап 11). Только
     # чтение для индикации; управление идёт через каскад и от этого не зависит.
@@ -241,10 +243,11 @@ def ws_get_state(
     if plan is not None:
         commands = [
             {
-                "target_area_id": c.target_area_id,
+                "target": c.target,
+                "target_kind": c.target_kind.value,
                 "domain": c.action.domain,
                 "service": c.action.service,
-                "level": "floor" if c.target_area_id in aggregates else "area",
+                "level": "floor" if c.target in floor_lights else "area",
             }
             for c in plan.commands
         ]

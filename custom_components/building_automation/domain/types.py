@@ -78,10 +78,15 @@ class RoomType(StrEnum):
 
 @dataclass(frozen=True)
 class Floor:
-    """Этаж (Floor) с необязательной агрегатной Area (SPEC §3.2 ТЗ)."""
+    """Этаж (Floor) с необязательной агрегатной Area (SPEC §3.2 ТЗ).
+
+    `light_entity_id` — помеченный `ba_area_light` групповой свет агрегатной Area
+    этажа (этап 12); цель схлопывания. `None`, если не найден/не единственный.
+    """
 
     floor_id: FloorId
     aggregate_area_id: AreaId | None = None
+    light_entity_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -89,7 +94,8 @@ class Room:
     """Помещение (Area) — единица применения каскада.
 
     `status` — результат проверки инварианта Area (`evaluate_area`), вычисляется
-    адаптером при сборке снимка.
+    адаптером при сборке снимка. `light_entity_id` — помеченный `ba_area_light`
+    групповой свет помещения (этап 12): при `status == OK` задан, иначе `None`.
     """
 
     area_id: AreaId
@@ -97,6 +103,7 @@ class Room:
     room_type: RoomType | None = None
     opt_out: bool = False
     status: AreaStatus = AreaStatus.OK
+    light_entity_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -197,11 +204,27 @@ class ControlState:
     floors: Mapping[FloorId, FloorControl] = field(default_factory=dict)
 
 
+class TargetKind(StrEnum):
+    """Вид цели команды каскада (этап 12).
+
+    Свет целится по конкретной световой сущности; автояркость (room-pinned) — по
+    Area помещения, т.к. сервис `set_autobrightness` сам отбирает датчики Area.
+    """
+
+    ENTITY = "entity"
+    AREA = "area"
+
+
 @dataclass(frozen=True)
 class Command:
-    """Одна команда каскада: применить действие к целевой Area."""
+    """Одна команда каскада: применить действие к цели.
 
-    target_area_id: AreaId
+    `target` — `entity_id` световой сущности (`ENTITY`) либо `area_id`
+    помещения (`AREA`); вид указывает `target_kind`.
+    """
+
+    target: str
+    target_kind: TargetKind
     action: Action
 
 
