@@ -44,10 +44,10 @@
 - Фронтенд панели — vanilla JS + Lit без сборки.
 
 **Источники требований.** Архитектурные требования и журнал решений —
-[`docs/TZ.md`](docs/TZ.md) (редакция 5). Постановка и пользовательские сценарии —
-[`docs/task.md`](docs/task.md). Доменный словарь — [`CONTEXT.md`](CONTEXT.md).
+[`docs/requirements/TZ.md`](docs/requirements/TZ.md) (редакция 5). Постановка и пользовательские сценарии —
+[`docs/requirements/task.md`](docs/requirements/task.md). Доменный словарь — [`CONTEXT.md`](CONTEXT.md).
 Контракт со смежным проектом —
-[`docs/contract-ha-lighting-compilers.md`](docs/contract-ha-lighting-compilers.md).
+[`docs/contracts/contract-ha-lighting-compilers.md`](docs/contracts/contract-ha-lighting-compilers.md).
 Правила кода — [`.ai/rules/`](.ai/rules/).
 
 **Термины** используются строго по `CONTEXT.md`: объект, этаж, помещение, зона,
@@ -145,7 +145,7 @@ opt-out, статус инварианта, принадлежность пом�
 > ровно одна → `OK`, её `entity_id` идёт в `Room.light_entity_id` (для агрегата
 > этажа — `Floor.light_entity_id`); 0 → `NO_LIGHT`, ≥2 → `MULTIPLE_LIGHTS`.
 > Непомеченный свет игнорируется — в Area можно держать любые светильники.
-> Контракт генератора: [`docs/contract-ha-lighting-compilers.md`](docs/contract-ha-lighting-compilers.md) §8.
+> Контракт генератора: [`docs/contracts/contract-ha-lighting-compilers.md`](docs/contracts/contract-ha-lighting-compilers.md) §8.
 
 #### 2.2.3. `domain/profiles.py` — разрешение профилей
 
@@ -614,7 +614,7 @@ class Decision:
 
 ## 5. Сценарии тестов (BDD)
 
-Каждый пользовательский сценарий из `docs/task.md` даёт минимум один тест.
+Каждый пользовательский сценарий из `docs/requirements/task.md` даёт минимум один тест.
 Негативные и граничные случаи добавлены сверх них.
 
 ### 5.1. Разрешение расписания (`domain/schedule.py`)
@@ -941,7 +941,7 @@ score ловит тесты, которые исполняют код, но ни
   свет игнорируется, в Area можно держать любые светильники.
 - **§2.6:** `last_plan.commands[]` — `target`/`target_kind`/`level`.
 - Покрытие ветвей `domain/` 100 % сохранено; `test_cascade` переписан под метку.
-- Зависит от Правки 6 контракта генератора ([`docs/contract-ha-lighting-compilers.md`](docs/contract-ha-lighting-compilers.md) §8).
+- Зависит от Правки 6 контракта генератора ([`docs/contracts/contract-ha-lighting-compilers.md`](docs/contracts/contract-ha-lighting-compilers.md) §8).
   Ожидает объекта: подтверждение переключения света по помеченной сущности.
 
 ### 1.3 — 2026-08-04 (этап 11 — управление автояркостью)
@@ -978,7 +978,7 @@ score ловит тесты, которые исполняют код, но ни
   `last_plan`; `data` действия — произвольный dict (напр. `brightness_pct`).
 - **Приёмка (этап 10)** пройдена по всему удалённо проверяемому: `hassfest`
   зелёный, покрытие ветвей `domain/` 100 %, mutation 92.3 %, fail-open гейта,
-  права (неадмин). Протокол — `docs/acceptance-protocol.md`. Тег `0.5.0`;
+  права (неадмин). Протокол — `docs/acceptance/acceptance-protocol.md`. Тег `0.5.0`;
   остаётся полевое подтверждение видимого света на объекте (→ `v1.0.0`).
 
 ### 1.1 — 2026-07-23 (по итогам этапов 7–8 и полевого теста)
@@ -1022,7 +1022,7 @@ score ловит тесты, которые исполняют код, но ни
 
 **Исходная редакция.**
 
-Первая редакция. Составлена по `docs/TZ.md` редакции 5 и `docs/task.md`
+Первая редакция. Составлена по `docs/requirements/TZ.md` редакции 5 и `docs/requirements/task.md`
 редакции 5.
 
 Решения, принятые **в ходе написания спецификации** и внесённые обратно в ТЗ:

@@ -8,17 +8,41 @@
 
 ## Документы
 
+Сгруппированы по назначению (`docs/` разложена по подпапкам).
+
+**Требования и спецификация**
+
 | Документ | О чём |
 |---|---|
-| [`docs/task.md`](docs/task.md) | постановка задачи, BDD-сценарии |
-| [`docs/TZ.md`](docs/TZ.md) | архитектурные требования, журнал решений |
+| [`docs/requirements/task.md`](docs/requirements/task.md) | постановка задачи, BDD-сценарии |
+| [`docs/requirements/TZ.md`](docs/requirements/TZ.md) | архитектурные требования, журнал решений |
 | [`SPEC.md`](SPEC.md) | спецификация: модули, типы, алгоритмы, критерии, §2.6 внешние контракты |
-| [`PLAN.md`](PLAN.md) | план по этапам + changelog выполненного |
 | [`CONTEXT.md`](CONTEXT.md) | доменный словарь |
-| [`docs/mode-matrix.md`](docs/mode-matrix.md) | как устроены профили и матрица режимов, сценарии настройки |
-| [`docs/external-interface.md`](docs/external-interface.md) | что Оркестратор выставляет наружу (сущности, гейт, события, сервисы) |
-| [`docs/acceptance-protocol.md`](docs/acceptance-protocol.md) | протокол приёмки (этап 10): метрики, чек-лист, что осталось на объекте |
-| [`docs/contract-ha-lighting-compilers.md`](docs/contract-ha-lighting-compilers.md) | контракт со смежным проектом-генератором |
+| [`PLAN.md`](PLAN.md) | план по этапам + changelog выполненного |
+
+**Руководства** (`docs/guides/`)
+
+| Документ | О чём |
+|---|---|
+| [`mode-matrix.md`](docs/guides/mode-matrix.md) | профили и матрица режимов, сценарии настройки |
+| [`external-interface.md`](docs/guides/external-interface.md) | что Оркестратор выставляет наружу (сущности, гейт, события, сервисы) |
+
+**Контракты со смежными проектами** (`docs/contracts/`)
+
+| Документ | О чём |
+|---|---|
+| [`contract-ha-lighting-compilers.md`](docs/contracts/contract-ha-lighting-compilers.md) | исходящий контракт с генератором топологии (метки, группы света) |
+| [`handoff-autobrightness.md`](docs/contracts/handoff-autobrightness.md) | входящий handoff по автояркости (`arvid_dali_center`) |
+
+**Приёмка** (`docs/acceptance/`)
+
+| Документ | О чём |
+|---|---|
+| [`acceptance-protocol.md`](docs/acceptance/acceptance-protocol.md) | протокол приёмки (этап 10): метрики, чек-лист, что осталось на объекте |
+
+**Архив** (`docs/archive/`) — исторические артефакты, к текущей работе не нужны:
+переписка по контракту гейта (fail-open давно закрыт, живёт в контракте §3 и
+`external-interface.md`).
 
 ## Установка через HACS
 
@@ -43,7 +67,7 @@
 ## Статус
 
 **Этапы 0–12 закрыты (тег `0.7.0`).** Реализовано и проверено на песочнице
-HA 2026.5.4; приёмка — [`docs/acceptance-protocol.md`](docs/acceptance-protocol.md).
+HA 2026.5.4; приёмка — [`docs/acceptance/acceptance-protocol.md`](docs/acceptance/acceptance-protocol.md).
 Этап 11 — управление автояркостью (+ колонка «Автояркость», принята на объекте);
 этап 12 — целеуказание по метке `ba_area_light` (в Area можно держать любой свет).
 Остаточные полевые пункты до `v1.0.0` — подтверждение видимого света, живого
@@ -85,7 +109,7 @@ custom_components/building_automation/   интеграция
 ├── *.py             платформы сущностей, coordinator, config_flow, websocket_api
 └── www/             панель (vanilla JS + Lit, без сборки)
 tests/domain/        тесты ядра
-docs/                требования, контракты, руководства
+docs/                requirements/ guides/ contracts/ acceptance/ archive/
 .ai/                 методология и правила (см. ниже)
 ```
 

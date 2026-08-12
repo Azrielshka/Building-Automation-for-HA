@@ -380,7 +380,7 @@ DALI-группу, — оптимум и для Оркестратора, и д�
 | **Прекратить создавать `input_boolean.regim_auto_<N>`** | упраздняются вместе с обвязкой |
 
 Детализация правок, критерии приёмки и контракт имён — в
-[`contract-ha-lighting-compilers.md`](contract-ha-lighting-compilers.md).
+[`contract-ha-lighting-compilers.md`](../contracts/contract-ha-lighting-compilers.md).
 Документ самодостаточен и предназначен для передачи в тот проект.
 
 ### 7.2. Зона Оркестратора

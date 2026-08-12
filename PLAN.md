@@ -539,7 +539,7 @@ async_register_panel(..., module_url=…)` из `async_setup_entry`, сняти�
 
 ### 10d — Приёмка и фиксация
 
-- **Протокол приёмки** (`docs/acceptance-protocol.md`) — чек-лист `tooling.md` §5
+- **Протокол приёмки** (`docs/acceptance/acceptance-protocol.md`) — чек-лист `tooling.md` §5
   с отметками и числами, включая fail-open гейта и сверку BDD.
 - **DoD** (`styleguide.md` §2): все §6-критерии выполнены и измерены.
   ⚠ Покрытие считается **по `domain/`** (≥ 95 %), не по всему пакету — обвязка
@@ -567,7 +567,7 @@ SPEC §6 целиком, DoD styleguide, task.md «Оркестратор нед
 вместо `area_id`. Снимает инвариант «ровно одна `light` в Area» и позволяет
 держать в Area любой свет (лампы, зонные группы) для других интеграций и
 удобства. Зависит от **Правки 6** генератора (метка) —
-[`docs/contract-ha-lighting-compilers.md`](docs/contract-ha-lighting-compilers.md) §8.
+[`docs/contracts/contract-ha-lighting-compilers.md`](docs/contracts/contract-ha-lighting-compilers.md) §8.
 
 **Что меняется (дизайн).**
 
@@ -641,7 +641,7 @@ _Пополняется по ходу работы: дата, этап, что �
 
 ### Этап 12 (целеуказание по метке `ba_area_light`) — ВЫПОЛНЕН 2026-08-07
 Свет целится по помеченной сущности вместо `area_id` — в Area можно держать любой
-свет. Контракт генератора — [`docs/contract-ha-lighting-compilers.md`](docs/contract-ha-lighting-compilers.md) §8 (Правка 6).
+свет. Контракт генератора — [`docs/contracts/contract-ha-lighting-compilers.md`](docs/contracts/contract-ha-lighting-compilers.md) §8 (Правка 6).
 
 - **Ядро (TDD):** `TargetKind` + `Command(target, target_kind, action)`;
   `Room`/`Floor.light_entity_id`; `cascade` целит свет по сущности (схлопывание —
@@ -659,7 +659,7 @@ _Пополняется по ходу работы: дата, этап, что �
 
 ### Этап 11 (управление автояркостью) — ЧАСТИЧНО, 2026-08-04
 Управление функцией автояркости соседней интеграции `arvid_dali_center` из
-матрицы режимов + индикация. Контракт — [`docs/HANDOFF_AUTOBRIGHTNESS.md`](docs/HANDOFF_AUTOBRIGHTNESS.md).
+матрицы режимов + индикация. Контракт — [`docs/contracts/handoff-autobrightness.md`](docs/contracts/handoff-autobrightness.md).
 
 - **Ядро (TDD, RED→GREEN):** `types.is_room_pinned`; `storage_schema` — белый
   список пар (домен, сервис), валидация `set_autobrightness` (`enabled: bool`,
@@ -681,7 +681,7 @@ _Пополняется по ходу работы: дата, этап, что �
 
 ### Этап 10 (сборка, hassfest, приёмка) — ВЫПОЛНЕН 2026-07-27, тег 0.5.0
 Формально закрыт: пройдено всё автоматически/удалённо проверяемое. Протокол —
-[`docs/acceptance-protocol.md`](docs/acceptance-protocol.md).
+[`docs/acceptance/acceptance-protocol.md`](docs/acceptance/acceptance-protocol.md).
 
 - **10a:** CI `hassfest` (GitHub Actions) — **зелёный**; единый снимок: pytest 82,
   покрытие ветвей `domain/` **100%**, mutation **92.3%** (600/650),
@@ -734,7 +734,7 @@ Custom Panel «Оркестратор здания» (vanilla JS + Lit без с
 - **Q3=C** — opt-out переехал из метки `ba_optout` в `.storage` Оркестратора
   (`Config.opted_out_areas`, чистая `topology.apply_opt_out`, WS `set_opt_out`);
   6 тестов ядра, покрытие 100 %.
-- Документы: `docs/mode-matrix.md` (профили и сценарии), `docs/external-interface.md`
+- Документы: `docs/guides/mode-matrix.md` (профили и сценарии), `docs/guides/external-interface.md`
   (внешний интерфейс + контракт с генератором, §9 гарантия покрытия агрегата).
 
 **Найденные и исправленные дефекты (полевой тест):**

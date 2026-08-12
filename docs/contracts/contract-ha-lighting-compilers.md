@@ -481,5 +481,5 @@ ba_type_zal        ba_type_special     ba_type_hall
 ## 12. Источник требований
 
 Полная архитектура Оркестратора и обоснование каждого решения —
-`Main-management-system/docs/TZ.md` (редакция 5), разделы §3 (политика Area),
-§6 (гейт) и §7 (разграничение). Постановка задачи — там же, `docs/task.md`.
+`Main-management-system/docs/requirements/TZ.md` (редакция 5), разделы §3 (политика Area),
+§6 (гейт) и §7 (разграничение). Постановка задачи — там же, `docs/requirements/task.md`.

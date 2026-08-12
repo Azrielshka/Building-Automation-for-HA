@@ -3,8 +3,8 @@
 Термины домена. Архитектурная лексика (module, interface, depth, seam, adapter) —
 в скилле `improve-codebase-architecture`, здесь не дублируется.
 
-Полное описание требований — [`docs/TZ.md`](docs/TZ.md), постановка —
-[`docs/task.md`](docs/task.md).
+Полное описание требований — [`docs/requirements/TZ.md`](docs/requirements/TZ.md), постановка —
+[`docs/requirements/task.md`](docs/requirements/task.md).
 
 ## Уровни объекта
 
@@ -60,7 +60,7 @@
 - **`ha-lighting-compilers`** — генератор конфигов из Excel. Владеет Floors,
   Areas, групповыми светильниками, метками, скриптами, автоматизациями и
   blueprint'ами. Контракт доработок —
-  [`docs/contract-ha-lighting-compilers.md`](docs/contract-ha-lighting-compilers.md).
+  [`docs/contracts/contract-ha-lighting-compilers.md`](docs/contracts/contract-ha-lighting-compilers.md).
 - **`zone_manager`** — управление по датчикам движения. Оркестратор не знает о
   нём: влияет только публикацией гейта.
 - **`event_schedule`** — источник расписания: набор сущностей со `state == "on"`

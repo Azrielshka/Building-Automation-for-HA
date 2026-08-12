@@ -175,7 +175,7 @@ trigger:
 (SPEC §2.6), а не рекомендованный публичный API. Для внешних потребителей —
 сущности, события и сервисы выше.
 
-Полный список и права — в [`SPEC.md` §2.6](../SPEC.md).
+Полный список и права — в [`SPEC.md` §2.6](../../SPEC.md).
 
 ---
 
@@ -232,4 +232,4 @@ Area этажа (с меткой `ba_floor_area`) должен управлят�
 переключится.** Это ключевой инвариант на стороне генератора.
 
 Полный контракт (форма гейта в blueprint'ах, порядок внедрения) —
-[`contract-ha-lighting-compilers.md`](contract-ha-lighting-compilers.md).
+[`contract-ha-lighting-compilers.md`](../contracts/contract-ha-lighting-compilers.md).
