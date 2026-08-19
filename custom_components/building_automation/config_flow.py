@@ -12,7 +12,12 @@ import voluptuous as vol
 from homeassistant.config_entries import ConfigFlow
 from homeassistant.helpers import selector
 
-from .const import CONF_FALLBACK, CONF_SCHEDULE_SOURCE, DOMAIN
+from .const import (
+    CONF_FALLBACK,
+    CONF_SCHEDULE_SOURCE,
+    DEFAULT_SCHEDULE_SOURCE,
+    DOMAIN,
+)
 from .domain.types import ScheduleMode
 
 if TYPE_CHECKING:
@@ -20,8 +25,13 @@ if TYPE_CHECKING:
 
 _SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_SCHEDULE_SOURCE): selector.EntitySelector(
-            selector.EntitySelectorConfig(multiple=True),
+        # Один сенсор, чьё состояние — режим (lesson/break/window/off).
+        vol.Required(
+            CONF_SCHEDULE_SOURCE, default=DEFAULT_SCHEDULE_SOURCE
+        ): selector.EntitySelector(
+            selector.EntitySelectorConfig(
+                filter=selector.EntityFilterSelectorConfig(domain="sensor"),
+            ),
         ),
         vol.Required(
             CONF_FALLBACK, default=ScheduleMode.OFF.value

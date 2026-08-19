@@ -107,28 +107,16 @@ class Room:
 
 
 @dataclass(frozen=True)
-class ScheduleEvent:
-    """Снимок одной сущности источника расписания.
-
-    `event_type` — сырой атрибут (может быть неизвестным); `active` — сущность
-    в состоянии «включено» и доступна.
-    """
-
-    event_type: str
-    active: bool
-
-
-@dataclass(frozen=True)
 class ScheduleResolution:
     """Результат разрешения режима расписания.
 
-    `overlap` — набор одновременно активных известных типов при аномалии
-    источника; пустой кортеж, если аномалии нет.
+    Источник — один сенсор, чьё состояние прямо и есть режим; приоритет и
+    наложения разрешены на его стороне. `source_available` — состояние сенсора
+    известно (`lesson`/`break`/`window`/`off`); иначе применён fallback.
     """
 
     mode: ScheduleMode
     source_available: bool
-    overlap: tuple[ScheduleMode, ...]
 
 
 @dataclass(frozen=True)

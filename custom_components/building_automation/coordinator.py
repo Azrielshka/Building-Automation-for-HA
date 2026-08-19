@@ -38,7 +38,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from .adapters.executor import execute_plan
 from .adapters.publisher import publish_events
 from .adapters.registry import build_topology_snapshot
-from .adapters.schedule import read_schedule_events
+from .adapters.schedule import read_schedule_state
 from .adapters.store import ConfigStore
 from .adapters.timers import DelayedTransitionTimer
 from .const import CONF_FALLBACK, CONF_SCHEDULE_SOURCE, DOMAIN
@@ -98,7 +98,13 @@ class BuildingCoordinator(DataUpdateCoordinator[OrchestratorState]):
         """Инициализировать координатор из конфигурации entry."""
         super().__init__(hass, _LOGGER, name=DOMAIN)
         self.entry = entry
-        self._source_ids: list[str] = list(entry.data[CONF_SCHEDULE_SOURCE])
+        # Источник расписания — один сенсор. Совместимость: прежние записи
+        # хранили список — берём первый элемент (решение владельца).
+        raw_source = entry.data[CONF_SCHEDULE_SOURCE]
+        if isinstance(raw_source, list):
+            self._source_id: str = raw_source[0] if raw_source else ""
+        else:
+            self._source_id = raw_source
         self._fallback = ScheduleMode(entry.data[CONF_FALLBACK])
         self._config_store = ConfigStore(hass)
         self._timer = DelayedTransitionTimer()
@@ -122,9 +128,9 @@ class BuildingCoordinator(DataUpdateCoordinator[OrchestratorState]):
     # --- Снимки ---------------------------------------------------------
 
     def _read_resolution(self) -> ScheduleResolution:
-        """Пересчитать режим расписания из текущих состояний источника."""
-        events = read_schedule_events(self.hass, self._source_ids)
-        return resolve_schedule_mode(events, self._fallback)
+        """Пересчитать режим расписания из состояния сенсора-источника."""
+        raw = read_schedule_state(self.hass, self._source_id)
+        return resolve_schedule_mode(raw, self._fallback)
 
     def _topology(self) -> TopologySnapshot:
         """Снимок топологии с наложенной политикой opt-out из конфига (Q3=C)."""
@@ -160,7 +166,7 @@ class BuildingCoordinator(DataUpdateCoordinator[OrchestratorState]):
         await super().async_config_entry_first_refresh()
         self.entry.async_on_unload(
             async_track_state_change_event(
-                self.hass, self._source_ids, self._handle_source_change
+                self.hass, [self._source_id], self._handle_source_change
             )
         )
         self._subscribe_registry()
@@ -232,8 +238,18 @@ class BuildingCoordinator(DataUpdateCoordinator[OrchestratorState]):
 
     @property
     def schedule_source(self) -> list[str]:
-        """entity_id сущностей источника расписания (за чем следим)."""
-        return list(self._source_ids)
+        """entity_id источника расписания списком из одного (за чем следим)."""
+        return [self._source_id]
+
+    @property
+    def schedule_gap(self) -> bool:
+        """Диагностика: атрибут `gap` источника (активного события нет).
+
+        `True` — режим держится по последнему завершившемуся событию (дырка в
+        расписании или момент после перезапуска). На сам режим не влияет.
+        """
+        state = self.hass.states.get(self._source_id)
+        return bool(state is not None and state.attributes.get("gap") is True)
 
     async def async_mutate_config(self, mutate: Callable[[Config], Config]) -> None:
         """Атомарно изменить один узел конфигурации, сохранить и применить.

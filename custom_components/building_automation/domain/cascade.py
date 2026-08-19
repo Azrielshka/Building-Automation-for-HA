@@ -96,9 +96,7 @@ def plan_cascade(
             continue
         # Поток автояркости: всегда по Area помещения (сервис сам отбирает датчики).
         commands.extend(
-            Command(
-                target=room.area_id, target_kind=TargetKind.AREA, action=action
-            )
+            Command(target=room.area_id, target_kind=TargetKind.AREA, action=action)
             for room in active
             for action in actions.get(room.area_id, ())
             if is_room_pinned(action)

@@ -110,6 +110,7 @@
  * @typedef {object} StateSnapshot
  * @property {string} building_control
  * @property {string[]} schedule_source   entity_id источника расписания
+ * @property {boolean} schedule_gap       нет активного события (режим держится)
  * @property {string} schedule_mode
  * @property {string | null} applied_mode
  * @property {boolean} source_available

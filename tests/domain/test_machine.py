@@ -81,9 +81,7 @@ def _state(**overrides: object) -> OrchestratorState:
 
 def test_schedule_change_no_delay_applies_immediately() -> None:
     """Смена режима без задержки: план применяется сразу, событие смены."""
-    inp = ScheduleChanged(
-        ScheduleResolution(_LESSON, source_available=True, overlap=())
-    )
+    inp = ScheduleChanged(ScheduleResolution(_LESSON, source_available=True))
     decision = decide(_state(), inp, now=100.0)
     assert decision.state.applied_mode is _LESSON
     assert decision.plan is not None
@@ -97,9 +95,7 @@ def test_schedule_change_no_delay_applies_immediately() -> None:
 def test_schedule_change_with_delay_defers() -> None:
     """Смена с задержкой: SetTimer + предупреждение, каскад не применяется."""
     state = _state(config=_config(lesson_delay=300))
-    inp = ScheduleChanged(
-        ScheduleResolution(_LESSON, source_available=True, overlap=())
-    )
+    inp = ScheduleChanged(ScheduleResolution(_LESSON, source_available=True))
     decision = decide(state, inp, now=100.0)
     assert decision.plan is None
     assert isinstance(decision.timer_op, SetTimer)
@@ -138,7 +134,7 @@ def test_new_change_during_delay_cancels_previous() -> None:
         pending=PendingTransition(_LESSON, 400.0),
         applied_mode=_OFF,
     )
-    inp = ScheduleChanged(ScheduleResolution(_BREAK, source_available=True, overlap=()))
+    inp = ScheduleChanged(ScheduleResolution(_BREAK, source_available=True))
     decision = decide(state, inp, now=200.0)
     assert isinstance(decision.timer_op, SetTimer)
     assert decision.timer_op.target_mode is _BREAK
@@ -151,7 +147,7 @@ def test_new_change_during_delay_cancels_previous() -> None:
 
 def _started(mode: ScheduleMode):
 
-    return Started(ScheduleResolution(mode, source_available=True, overlap=()))
+    return Started(ScheduleResolution(mode, source_available=True))
 
 
 def test_start_with_divergence_applies_without_delay() -> None:
@@ -183,7 +179,7 @@ def test_start_does_not_restore_pending() -> None:
 
 
 def _sched(mode: ScheduleMode) -> ScheduleChanged:
-    return ScheduleChanged(ScheduleResolution(mode, source_available=True, overlap=()))
+    return ScheduleChanged(ScheduleResolution(mode, source_available=True))
 
 
 def test_gate_reflects_mode_sensors_allowed() -> None:
@@ -275,9 +271,7 @@ def test_building_return_to_auto_applies_current_schedule() -> None:
         schedule_mode=_LESSON,  # расписание уехало за время ручного
         applied_mode=_OFF,  # устаревший применённый режим
     )
-    decision = decide(
-        state, ControlModeChanged(building=ControlMode.AUTO), now=1.0
-    )
+    decision = decide(state, ControlModeChanged(building=ControlMode.AUTO), now=1.0)
     assert decision.state.applied_mode is _LESSON  # догнал расписание
     assert decision.plan is not None
     assert all(c.action == _ACTION for c in decision.plan.commands)
@@ -337,9 +331,7 @@ def test_gate_closed_when_mode_unconfigured() -> None:
     )
     # Расписание = WINDOW (нет в modes). Возврат в авто применяет schedule_mode
     # WINDOW → settings None → gate False.
-    state = _state(
-        config=config, schedule_mode=ScheduleMode.WINDOW, applied_mode=_OFF
-    )
+    state = _state(config=config, schedule_mode=ScheduleMode.WINDOW, applied_mode=_OFF)
     decision = decide(state, ControlModeChanged(building=ControlMode.AUTO), now=1.0)
     assert decision.state.applied_mode is ScheduleMode.WINDOW
     assert decision.gates["f1"] is False

@@ -189,6 +189,15 @@ export class BuildingAutomationMonitoring extends LitElement {
                 ? nothing
                 : html`<span class="badge attention">источник недоступен</span>`
             }
+            ${
+              s.schedule_gap
+                ? html`<span
+                    class="badge attention"
+                    title="Активного события нет — режим держится по последнему завершившемуся (дырка в расписании или момент после перезапуска)"
+                    >нет активного события</span
+                  >`
+                : nothing
+            }
           </span>
         </div>
         <div class="row">

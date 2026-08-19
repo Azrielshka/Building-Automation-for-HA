@@ -1,6 +1,6 @@
 # SPEC — интеграция «Building Automation» (Оркестратор здания)
 
-Спецификация разработки. Версия 1.4, 2026-08-07.
+Спецификация разработки. Версия 1.5, 2026-08-11.
 
 ## Индекс
 
@@ -102,20 +102,21 @@
 
 ```python
 def resolve_schedule_mode(
-    events: Sequence[ScheduleEvent],
+    raw_state: str | None,
     fallback: ScheduleMode,
 ) -> ScheduleResolution: ...
 ```
 
-**Интерфейс.** Вход — снимок сущностей источника (`event_type`, активна ли,
-доступна ли). Выход — режим, признак доступности источника и, если было
-наложение, его описание. Функция тотальна: не бросает исключений, на любом входе
-возвращает результат. Порядок элементов на результат не влияет.
+**Интерфейс.** Вход — состояние **одного** сенсора-источника
+(`sensor.event_schedule_mode`): `lesson`/`break`/`window`/`off` либо `None`/
+`unavailable`/`unknown`. Выход — режим и признак доступности источника. Функция
+тотальна: не бросает, на любом входе возвращает результат.
 
-**Глубина.** За одним вызовом скрыты: приоритет `break > window > lesson > off`,
-детект наложения, пустой вход, недоступность источника, подстановка fallback.
-Вызывающий не знает ни про приоритеты, ни про то, что источник — множество
-сущностей.
+**Глубина.** Источник (один сенсор) сам разрешает приоритет и наложения, поэтому
+здесь остаётся только маппинг «состояние → режим» и подстановка fallback.
+Известное состояние (в том числе `off`) → источник доступен; иначе → fallback,
+источник недоступен. Прежняя модель «набор on/off-событий + приоритет + наложения»
+упразднена (changelog 1.5).
 
 #### 2.2.2. `domain/topology.py` — снимок топологии и инвариант
 
@@ -296,7 +297,7 @@ def dump_config(config: Config) -> RawConfig: ...
 | Адаптер | Роль | Что скрывает |
 |---|---|---|
 | `adapters/registry.py` | реестры → `TopologySnapshot` | три реестра HA, метки, вычисление статуса Area |
-| `adapters/schedule.py` | сущности `event_schedule` → `ScheduleEvent` | фильтрация по атрибуту, `unavailable` |
+| `adapters/schedule.py` | состояние сенсора `event_schedule_mode` → строка/`None` | `unavailable`/`unknown`/пропажа → `None` |
 | `adapters/executor.py` | `CascadePlan` → сервисные вызовы | целеуказание по `area_id`, изоляция сбоев |
 | `adapters/timers.py` | `TimerOp` → `async_call_later` | отмена, привязка к жизненному циклу entry |
 | `adapters/store.py` | `Store` + `storage_schema` | версии, `async_delay_save` |
@@ -374,7 +375,7 @@ tests/
 
 | Команда | Права | Вход | Результат |
 |---|---|---|---|
-| `get_state` | любой | — | мониторинг: `building_control`, `schedule_source[]`, `schedule_mode`, `applied_mode`, `source_available`, `pending`, `floors[]` (`control`, `gate`, `aggregate_area_id`), `rooms[]` (`room_type`, `opt_out`, `status`, `autobrightness`), `last_plan` (`commands[]` с `target`/`target_kind`/`level`, `skipped[]`, `collapse`, `previous_mode`, `applied_mode`), `orphaned`, `autobrightness_entities[]` |
+| `get_state` | любой | — | мониторинг: `building_control`, `schedule_source[]`, `schedule_gap`, `schedule_mode`, `applied_mode`, `source_available`, `pending`, `floors[]` (`control`, `gate`, `aggregate_area_id`), `rooms[]` (`room_type`, `opt_out`, `status`, `autobrightness`), `last_plan` (`commands[]` с `target`/`target_kind`/`level`, `skipped[]`, `collapse`, `previous_mode`, `applied_mode`), `orphaned`, `autobrightness_entities[]` |
 | `get_config` | любой | — | `{config}` — вывод `dump_config` (вкл. `opted_out_areas`) |
 | `set_control_mode` | любой | `target` (`building`/`floor`), `mode` (`auto`/`manual`), `floor_id?` | `{ok}` |
 | `set_mode_settings` | **admin** | `mode`, `delay_seconds`, `sensors_allowed`, `sensors_allowed_by_floor?` | `{config}` |
@@ -485,7 +486,7 @@ class Config:
     opted_out_areas: frozenset[AreaId]  # исключённые из управления (Q3=C)
 ```
 
-Прочие типы данных: `Floor`, `Room` (§2.2.2), `ScheduleEvent`, `ScheduleResolution`
+Прочие типы данных: `Floor`, `Room` (§2.2.2), `ScheduleResolution`
 (§2.2.1), `Command`, `SkipEntry`, `CascadePlan` (§2.2.4).
 
 ### 3.1.1. Типы машины состояний
@@ -619,33 +620,25 @@ class Decision:
 
 ### 5.1. Разрешение расписания (`domain/schedule.py`)
 
+Источник — один сенсор, чьё состояние прямо и есть режим (changelog 1.5).
+
 ```gherkin
-Сценарий: Активно ровно одно событие
-  Дано активно событие типа lesson
+Сценарий: Известное состояние даёт свой режим
+  Дано состояние источника lesson
   Когда вычисляется режим
-  Тогда режим равен «Урок», источник доступен, аномалии нет
+  Тогда режим равен «Урок», источник доступен
 
-Сценарий: Наложение разрешается приоритетом
-  Дано одновременно активны lesson и break
-  Когда вычисляется режим
-  Тогда режим равен «Перемена»
-  И зафиксирована аномалия источника с перечислением обоих типов
+Сценарий: off — явное доступное состояние
+  Дано состояние источника off
+  Тогда режим равен «Не рабочее время», источник доступен
 
-Сценарий: Полный порядок приоритета
-  Дано активны все четыре типа одновременно
-  Тогда режим равен «Перемена»   # break > window > lesson > off
-
-Сценарий: Пустой вход даёт fallback
-  Дано не активно ни одного события
+Сценарий: Сенсора нет — fallback
+  Дано источник отсутствует (None)
   Тогда режим равен fallback-режиму и источник помечен недоступным
 
-Сценарий: Недоступные сущности не считаются активными
-  Дано единственная сущность lesson в состоянии unavailable
+Сценарий: unavailable/unknown/мусор — fallback
+  Дано состояние источника unavailable (или unknown, или неизвестное значение)
   Тогда режим равен fallback-режиму и источник помечен недоступным
-
-Сценарий: Неизвестный тип события игнорируется
-  Дано активны события типов lesson и «xyz»
-  Тогда режим равен «Урок» и аномалии наложения нет
 ```
 
 ### 5.2. Инвариант Area (`domain/topology.py`)
@@ -928,6 +921,24 @@ score ловит тесты, которые исполняют код, но ни
 ---
 
 ## 9. Changelog
+
+### 1.5 — 2026-08-11 (источник расписания — один сенсор)
+
+- **Источник расписания — один `sensor.event_schedule_mode`**, чьё состояние
+  прямо и есть режим (`lesson`/`break`/`window`/`off`). Прежняя модель «набор
+  on/off-сущностей + атрибут `event_type` + приоритет + наложения» **упразднена**:
+  приоритет разрешает сам источник.
+- `resolve_schedule_mode` принимает **строку-состояние** (`§2.2.1`); из
+  `ScheduleResolution` убрано поле `overlap`; тип `ScheduleEvent` удалён;
+  `adapters/schedule.py` читает состояние одного сенсора.
+- Координатор нормализует конфиг (прежний список → первый элемент) и следит за
+  одним сенсором; `schedule_source[]` наружу — по-прежнему список из одного.
+- **Диагностика `gap`:** `get_state` отдаёт `schedule_gap` (атрибут `gap`
+  источника — активного события нет, режим держится по последнему); в мониторинге
+  бейдж «нет активного события». На режим не влияет.
+- config_flow: одиночный `EntitySelector` (домен `sensor`), по умолчанию
+  `sensor.event_schedule_mode`. Дни-исключения не обрабатываются (режим сам станет
+  `off` и вернётся назавтра). Покрытие ветвей `domain/` 100 %.
 
 ### 1.4 — 2026-08-07 (этап 12 — целеуказание по метке `ba_area_light`)
 

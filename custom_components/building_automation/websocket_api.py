@@ -277,6 +277,7 @@ def ws_get_state(
         {
             "building_control": state.control.building.value,
             "schedule_source": list(coordinator.schedule_source),
+            "schedule_gap": coordinator.schedule_gap,
             "schedule_mode": state.schedule_mode.value,
             "applied_mode": (
                 state.applied_mode.value if state.applied_mode is not None else None

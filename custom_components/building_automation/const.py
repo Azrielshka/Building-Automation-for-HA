@@ -5,7 +5,8 @@ from typing import Final
 DOMAIN: Final = "building_automation"
 
 # Ключи конфигурации (entry.data), задаются в config_flow.
-CONF_SCHEDULE_SOURCE: Final = "schedule_source"  # список entity_id источника
+CONF_SCHEDULE_SOURCE: Final = "schedule_source"  # entity_id сенсора-источника
+DEFAULT_SCHEDULE_SOURCE: Final = "sensor.event_schedule_mode"  # состояние = режим
 CONF_FALLBACK: Final = "fallback_mode"  # режим при недоступном расписании
 
 # Платформы сущностей (в корне пакета — loader не сканирует подпапки).
